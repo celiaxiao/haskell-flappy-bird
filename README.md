@@ -1,6 +1,5 @@
 # haskell-flappy-bird
 
-#
 ## _CSE230 Project Proposal_
 
 Caiwei Xiao, Zheng Ding, Linxiao Zhang, Weiqing Cao
