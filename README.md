@@ -43,4 +43,4 @@ There are several challenges we have encountered. This includes not being famili
 
 ## Project Goals
 
-Currently we believe we can achieve the goals set by the original proposal before the deadline.
+Currently we believe we can achieve the goals set by the original proposal before the deadline. If we encounter any unexpected problems and need an extensive amount of time to fix them, we'll consider remove the network feature.
