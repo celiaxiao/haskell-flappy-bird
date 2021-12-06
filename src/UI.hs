@@ -110,15 +110,16 @@ drawGameOver dead =
 drawGrid :: Game -> Widget Name
 drawGrid g = withBorderStyle BS.unicodeBold
   $ B.borderWithLabel (str "Snake")
-  $ vBox rows
+  $ hBox columns
   where
-    rows         = [hBox $ cellsInRow r | r <- [height-1,height-2..0]]
-    cellsInRow y = [drawCoord (V2 x y) | x <- [0..width-1]]
+    columns = [vBox $ cellsInCol c | c <- [0..width-1]]
+    cellsInCol x = [drawCoord (V2 x y) | y <- [height-1,height-2..0]]
     drawCoord    = drawCell . cellAt
     cellAt c
       | c `elem` g ^. snake = Snake
       | c == g ^. food      = Food
       | otherwise           = Empty
+
 
 drawCell :: Cell -> Widget Name
 drawCell Snake = withAttr snakeAttr cw
