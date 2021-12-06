@@ -24,7 +24,7 @@ import Control.Monad.Extra (orM)
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.State
 import Data.Maybe (fromMaybe)
-import Data.Sequence (Seq (..), iterateN, (<|))
+import Data.Sequence (Seq (..), iterateN, mapWithIndex, (<|))
 import qualified Data.Sequence as S
 import Linear.V2 (V2 (..), _x, _y)
 import System.Random (Random (..), newStdGen)
@@ -115,8 +115,13 @@ nextFood = do
 
 -- | Move snake along in a marquee fashion
 move :: Game -> Game
-move g@Game {_snake = (s :|> _)} = g & snake .~ (nextHead g <| s)
+move g@Game {_snake = s} = g & snake .~ S.mapWithIndex nextCell s
 move _ = error "Snakes can't be empty!"
+
+nextCell :: Int -> Coord -> Coord
+nextCell a (V2 x y) = V2 ((x - 1) `mod` width) y
+
+-- g & snake .~ (nextHead g <| s)
 
 -- | Get next head position of the snake
 nextHead :: Game -> Coord
@@ -134,7 +139,7 @@ turn :: Direction -> Game -> Game
 turn d g =
   if g ^. locked
     then g
-    else g & dir %~ turnDir d & paused .~ False & locked .~ True
+    else g & paused .~ False & locked .~ True
 
 turnDir :: Direction -> Direction -> Direction
 turnDir n c = West
