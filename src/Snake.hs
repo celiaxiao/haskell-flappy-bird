@@ -9,11 +9,16 @@ module Snake
     Game (..),
     Direction (..),
     dead,
-    food,
     score,
-    snake,
+    -- snake,
     height,
     width,
+    pl1,
+    pl2,
+    pl3,
+    x1,
+    x2,
+    x3,
   )
 where
 
@@ -27,19 +32,18 @@ import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq (..), iterateN, mapWithIndex, (<|))
 import qualified Data.Sequence as S
 import Linear.V2 (V2 (..), _x, _y)
-import System.Random (Random (..), newStdGen)
+import System.Random (Random (..), getStdRandom, newStdGen)
 
 -- Types
 
 data Game = Game
   { -- | snake as a sequence of points in N2
-    _snake :: Snake,
-    -- | direction
-    _dir :: Direction,
-    -- | location of the food
-    _food :: Coord,
+    -- _snake :: Snake,
+    _randP :: Int,
     -- | infinite list of random next food locations
-    _foods :: Stream Coord,
+    -- | direction
+    _randPs :: Stream Int,
+    _dir :: Direction,
     -- | game over flag
     _dead :: Bool,
     -- | paused flag
@@ -47,7 +51,13 @@ data Game = Game
     -- | score
     _score :: Int,
     -- | lock to disallow duplicate turns between time steps
-    _locked :: Bool
+    _locked :: Bool,
+    _pl1 :: Int,
+    _pl2 :: Int,
+    _pl3 :: Int,
+    _x1 :: Int,
+    _x2 :: Int,
+    _x3 :: Int
   }
   deriving (Show)
 
@@ -70,10 +80,12 @@ makeLenses ''Game
 -- Constants
 
 -- TODO: height and width should be 100
-height, width, pillarLength :: Int
+height, width, gapSize :: Int
 height = 30
 width = 30
-pillarLength = height `div` 3
+gapSize = height * 3 `div` 10
+
+-- pillarLength = height `div` 3
 
 -- Functions
 
@@ -86,51 +98,38 @@ step s = flip execState s . runMaybeT $ do
   -- Unlock from last directional turn
   MaybeT . fmap Just $ locked .= False
 
-  -- die (moved into boundary), eat (moved into food), or move (move into space)
-  die <|> eatFood <|> MaybeT (Just <$> modify move)
+  MaybeT (Just <$> modify move)
 
--- | Possibly die if next head position is in snake
-die :: MaybeT (State Game) ()
-die = do
-  MaybeT . fmap guard $ elem <$> (nextHead <$> get) <*> (use snake)
-  MaybeT . fmap Just $ dead .= True
-
--- | Possibly eat food if next head position is food
-eatFood :: MaybeT (State Game) ()
-eatFood = do
-  MaybeT . fmap guard $ (==) <$> (nextHead <$> get) <*> (use food)
-  MaybeT . fmap Just $ do
-    modifying score (+ 10)
-    get >>= \g -> modifying snake (nextHead g <|)
-    nextFood
-
--- | Set a valid next food coordinate
 nextFood :: State Game ()
 nextFood = do
-  (f :| fs) <- use foods
-  foods .= fs
-  elem f <$> use snake >>= \case
-    True -> nextFood
-    False -> food .= f
+  (f :| fs) <- use randPs
+  randPs .= fs
+  randP .= f
 
--- | Move snake along in a marquee fashion
+-- | Move pillar to the left. Update pillar length when it touchs the wall
 move :: Game -> Game
-move g@Game {_snake = s} = g & snake .~ S.mapWithIndex nextCell s
-move _ = error "Snakes can't be empty!"
+move g@Game {_x1 = xx1, _x2 = xx2, _x3 = xx3, _pl1 = ppl1, _pl2 = ppl2, _pl3 = ppl3, _randP = rp} =
+  g & x1 .~ ((xx1 -1) `mod` width) & x2 .~ ((xx2 -1) `mod` width) & x3 .~ ((xx3 -1) `mod` width)
+    & pl1 .~ nextP xx1 ppl1 rp
+    & pl2 .~ nextP xx2 ppl2 rp
+    & pl3 .~ nextP xx3 ppl3 rp
 
+-- generate the length of next pillar. If current x-coord is 0, it means we've touched the wall
+-- so we need to use a new random length `rp`. Else, we remain the same
+nextP :: Int -> Int -> Int -> Int
+nextP x p rp = if x /= 0 then p else rp
+
+-- move g@Game {_snake = s} = g & snake .~ S.mapWithIndex nextCell s
 nextCell :: Int -> Coord -> Coord
-nextCell a (V2 x y) = V2 ((x - 1) `mod` width) y
+nextCell _ (V2 x y) = V2 ((x - 1) `mod` width) y
 
 -- g & snake .~ (nextHead g <| s)
 
 -- | Get next head position of the snake
 nextHead :: Game -> Coord
-nextHead Game {_dir = d, _snake = (a :<| _)}
-  | d == North = a & _y %~ (\y -> (y + 1) `mod` height)
-  | d == South = a & _y %~ (\y -> (y - 1) `mod` height)
-  | d == East = a & _x %~ (\x -> (x + 1) `mod` width)
-  | d == West = a & _x %~ (\x -> (x - 1) `mod` width)
-nextHead _ = error "Snakes can't be empty!"
+nextHead g = V2 0 0
+
+--   | d == West = a & _x %~ (\x -> (x - 1) `mod` width)
 
 -- | Turn game direction (only turns orthogonally)
 --
@@ -144,32 +143,65 @@ turn d g =
 turnDir :: Direction -> Direction -> Direction
 turnDir n c = West
 
--- | c `elem` [North, South] && n `elem` [East, West] = n
--- | c `elem` [East, West] && n `elem` [North, South] = n
--- | otherwise = c
 initPillar :: [Coord] -> Seq Coord
 initPillar = S.fromList
 
-singlePillar :: Int -> Int -> [Coord]
-singlePillar pillarLen x = [V2 x (height - 1 - i) | i <- [0 .. pillarLen]]
+-- upperPillar :: Int -> Int -> [Coord]
+-- upperPillar pillarLen x = [V2 x (height - 1 - i) | i <- [0 .. pillarLen]]
+
+-- lowerPillar :: Int -> Int -> [Coord]
+-- lowerPillar pillarLen x = [V2 x (height - 1 - i) | i <- [pillarLen + (height * 3 `div` 10) .. height -1]]
+
+-- upperAndLowerPillars :: Int -> Int -> [Coord]
+-- upperAndLowerPillars upperPLen x = p1 ++ p2
+--   where
+--     p1 = upperPillar upperPLen x
+--     p2 = lowerPillar upperPLen x
+
+-- multiplePillar :: Int -> Int -> [Coord]
+-- multiplePillar pll plr =
+--   upperAndLowerPillars pll (width - 1) ++ upperAndLowerPillars plr (width * 2 `div` 3)
+
+-- >>> upperAndLowerPillars pillarLength (width - 1)
+-- [V2 29 29,V2 29 28,V2 29 27,V2 29 26,V2 29 25,V2 29 24,V2 29 23,V2 29 22,V2 29 21,V2 29 20,V2 29 19]
+drawInt :: Int -> Int -> IO Int
+drawInt x y = getStdRandom (randomR (x, y))
+
+-- nextPy = let
+--   do
+--     a <- drawInt (0 + (height `div` 6)) ((height `div` 3) + (height `div` 6))
+--   in
+--     a
+
+--_snake = initPillar (multiplePillar a b),
 
 -- | Initialize a paused game with random food location
 initGame :: IO Game
 initGame = do
-  (f :| fs) <-
-    fromList . randomRs (V2 0 0, V2 (width - 1) (height - 1)) <$> newStdGen
+  (randp :| randps) <-
+    fromList . randomRs (0 + (height `div` 6), (height `div` 3) + (height `div` 6)) <$> newStdGen
+  a <- drawInt (0 + (height `div` 6)) ((height `div` 3) + (height `div` 6))
+  b <- drawInt (0 + (height `div` 6)) ((height `div` 3) + (height `div` 6))
+  c <- drawInt (0 + (height `div` 6)) ((height `div` 3) + (height `div` 6))
+
   let xm = width `div` 2
       ym = height - 1
+      pillarLength = height `div` 3
       g =
         Game
-          { _snake = initPillar (singlePillar pillarLength (width - 1)),
-            _food = f,
-            _foods = fs,
-            _score = 0,
+          { _score = 0,
             _dir = West,
+            _randP = randp,
+            _randPs = randps,
             _dead = False,
             _paused = True,
-            _locked = False
+            _locked = False,
+            _pl1 = a,
+            _pl2 = b,
+            _pl3 = c,
+            _x1 = width - 1,
+            _x2 = width * 2 `div` 3,
+            _x3 = width `div` 3
           }
   return $ execState nextFood g
 
