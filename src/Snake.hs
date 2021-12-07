@@ -80,10 +80,11 @@ makeLenses ''Game
 -- Constants
 
 -- TODO: height and width should be 100
-height, width, gapSize :: Int
+height, width, gapSize, offset :: Int
 height = 30
 width = 30
 gapSize = height * 3 `div` 10
+offset = height `div` 6
 
 -- pillarLength = height `div` 3
 
@@ -97,14 +98,30 @@ step s = flip execState s . runMaybeT $ do
 
   -- Unlock from last directional turn
   MaybeT . fmap Just $ locked .= False
+  -- TODO: generatePillar or move; without generatePillar the 5th pillar is not random. With generatePillar we can't move
+  generatePillar <|> MaybeT (Just <$> modify move)
 
-  MaybeT (Just <$> modify move)
+generatePillar :: MaybeT (State Game) ()
+generatePillar = do
+  MaybeT . fmap Just $ do
+    g <- get
+    let g = move g
+    nextRandomPillar
 
-nextFood :: State Game ()
-nextFood = do
-  (f :| fs) <- use randPs
-  randPs .= fs
-  randP .= f
+nextRandomPillar :: State Game ()
+nextRandomPillar =
+  do
+    (randp :| randps) <- use randPs
+    randPs .= randps
+    g <- get
+    let touchWall = _x1 g == 0 || _x2 g == 0 || _x3 g == 0
+    if touchWall
+      then nextRandomPillar
+      else randP .= randp
+
+-- >>= \case
+--   True -> nextFood
+--   False -> food .= f
 
 -- | Move pillar to the left. Update pillar length when it touchs the wall
 move :: Game -> Game
@@ -146,43 +163,19 @@ turnDir n c = West
 initPillar :: [Coord] -> Seq Coord
 initPillar = S.fromList
 
--- upperPillar :: Int -> Int -> [Coord]
--- upperPillar pillarLen x = [V2 x (height - 1 - i) | i <- [0 .. pillarLen]]
-
--- lowerPillar :: Int -> Int -> [Coord]
--- lowerPillar pillarLen x = [V2 x (height - 1 - i) | i <- [pillarLen + (height * 3 `div` 10) .. height -1]]
-
--- upperAndLowerPillars :: Int -> Int -> [Coord]
--- upperAndLowerPillars upperPLen x = p1 ++ p2
---   where
---     p1 = upperPillar upperPLen x
---     p2 = lowerPillar upperPLen x
-
--- multiplePillar :: Int -> Int -> [Coord]
--- multiplePillar pll plr =
---   upperAndLowerPillars pll (width - 1) ++ upperAndLowerPillars plr (width * 2 `div` 3)
-
 -- >>> upperAndLowerPillars pillarLength (width - 1)
 -- [V2 29 29,V2 29 28,V2 29 27,V2 29 26,V2 29 25,V2 29 24,V2 29 23,V2 29 22,V2 29 21,V2 29 20,V2 29 19]
 drawInt :: Int -> Int -> IO Int
 drawInt x y = getStdRandom (randomR (x, y))
 
--- nextPy = let
---   do
---     a <- drawInt (0 + (height `div` 6)) ((height `div` 3) + (height `div` 6))
---   in
---     a
-
---_snake = initPillar (multiplePillar a b),
-
 -- | Initialize a paused game with random food location
 initGame :: IO Game
 initGame = do
   (randp :| randps) <-
-    fromList . randomRs (0 + (height `div` 6), (height `div` 3) + (height `div` 6)) <$> newStdGen
-  a <- drawInt (0 + (height `div` 6)) ((height `div` 3) + (height `div` 6))
-  b <- drawInt (0 + (height `div` 6)) ((height `div` 3) + (height `div` 6))
-  c <- drawInt (0 + (height `div` 6)) ((height `div` 3) + (height `div` 6))
+    fromList . randomRs (0 + offset, (height `div` 3) + offset) <$> newStdGen
+  a <- drawInt (0 + offset) ((height `div` 3) + offset)
+  b <- drawInt (0 + offset) ((height `div` 3) + offset)
+  c <- drawInt (0 + offset) ((height `div` 3) + offset)
 
   let xm = width `div` 2
       ym = height - 1
@@ -203,7 +196,7 @@ initGame = do
             _x2 = width * 2 `div` 3,
             _x3 = width `div` 3
           }
-  return $ execState nextFood g
+  return $ execState nextRandomPillar g
 
 fromList :: [a] -> Stream a
 fromList = foldr (:|) (error "Streams must be infinite")
