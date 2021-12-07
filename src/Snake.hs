@@ -57,7 +57,8 @@ data Game = Game
     _pl3 :: Int,
     _x1 :: Int,
     _x2 :: Int,
-    _x3 :: Int
+    _x3 :: Int,
+    _wall :: Int
   }
   deriving (Show)
 
@@ -86,6 +87,7 @@ width = 30
 gapSize = height * 3 `div` 10
 offset = height `div` 6
 
+-- wall = 0
 -- pillarLength = height `div` 3
 
 -- Functions
@@ -101,13 +103,20 @@ step s = flip execState s . runMaybeT $ do
   -- TODO: generatePillar or move; without generatePillar the 5th pillar is not random. With generatePillar we can't move
   generatePillar <|> MaybeT (Just <$> modify move)
 
+-- check whether one of the pillar has reached the wall, if so reset the pillar length for that pillar
 generatePillar :: MaybeT (State Game) ()
 generatePillar = do
+  MaybeT . fmap guard $ (==) <$> (distanceToWall <$> get) <*> use wall
   MaybeT . fmap Just $ do
-    g <- get
-    let g = move g
+    get >>= \g -> modifying pl1 (nextP1 g)
+    get >>= \g -> modifying pl2 (nextP2 g)
+    get >>= \g -> modifying pl3 (nextP3 g)
+    get >>= \g -> modifying x1 (nextX g)
+    get >>= \g -> modifying x2 (nextX g)
+    get >>= \g -> modifying x3 (nextX g)
     nextRandomPillar
 
+-- control the streaming that keeps generating pillar length
 nextRandomPillar :: State Game ()
 nextRandomPillar =
   do
@@ -119,36 +128,38 @@ nextRandomPillar =
       then nextRandomPillar
       else randP .= randp
 
--- >>= \case
---   True -> nextFood
---   False -> food .= f
-
--- | Move pillar to the left. Update pillar length when it touchs the wall
+-- | Move pillar to the left
 move :: Game -> Game
-move g@Game {_x1 = xx1, _x2 = xx2, _x3 = xx3, _pl1 = ppl1, _pl2 = ppl2, _pl3 = ppl3, _randP = rp} =
+move g@Game {_x1 = xx1, _x2 = xx2, _x3 = xx3} =
   g & x1 .~ ((xx1 -1) `mod` width) & x2 .~ ((xx2 -1) `mod` width) & x3 .~ ((xx3 -1) `mod` width)
-    & pl1 .~ nextP xx1 ppl1 rp
-    & pl2 .~ nextP xx2 ppl2 rp
-    & pl3 .~ nextP xx3 ppl3 rp
 
 -- generate the length of next pillar. If current x-coord is 0, it means we've touched the wall
 -- so we need to use a new random length `rp`. Else, we remain the same
 nextP :: Int -> Int -> Int -> Int
-nextP x p rp = if x /= 0 then p else rp
+nextP x rp p = if x /= 0 then p else rp
 
--- move g@Game {_snake = s} = g & snake .~ S.mapWithIndex nextCell s
-nextCell :: Int -> Coord -> Coord
-nextCell _ (V2 x y) = V2 ((x - 1) `mod` width) y
+-- generate the length of next pillar1
+nextP1 :: Game -> Int -> Int
+nextP1 g@Game {_x1 = xx1, _x2 = xx2, _x3 = xx3, _pl1 = ppl1, _pl2 = ppl2, _pl3 = ppl3, _randP = rp} p1 =
+  nextP xx1 rp ppl1
 
--- g & snake .~ (nextHead g <| s)
+-- generate the length of next pillar2
+nextP2 :: Game -> Int -> Int
+nextP2 g@Game {_x1 = xx1, _x2 = xx2, _x3 = xx3, _pl1 = ppl1, _pl2 = ppl2, _pl3 = ppl3, _randP = rp} p2 =
+  nextP xx2 rp ppl2
 
--- | Get next head position of the snake
-nextHead :: Game -> Coord
-nextHead g = V2 0 0
+-- generate the length of next pillar3
+nextP3 :: Game -> Int -> Int
+nextP3 g@Game {_x1 = xx1, _x2 = xx2, _x3 = xx3, _pl1 = ppl1, _pl2 = ppl2, _pl3 = ppl3, _randP = rp} p3 =
+  nextP xx3 rp ppl3
 
---   | d == West = a & _x %~ (\x -> (x - 1) `mod` width)
+--move pillar to the left by decreasing the x-coord
+nextX :: Game -> Int -> Int
+nextX g x = (x -1) `mod` width
 
--- | Turn game direction (only turns orthogonally)
+distanceToWall :: Game -> Int
+distanceToWall Game {_x1 = xx1, _x2 = xx2, _x3 = xx3} = minimum [x | x <- [xx1, xx2, xx3]]
+
 --
 -- Implicitly unpauses yet locks game
 turn :: Direction -> Game -> Game
@@ -160,19 +171,16 @@ turn d g =
 turnDir :: Direction -> Direction -> Direction
 turnDir n c = West
 
-initPillar :: [Coord] -> Seq Coord
-initPillar = S.fromList
-
--- >>> upperAndLowerPillars pillarLength (width - 1)
--- [V2 29 29,V2 29 28,V2 29 27,V2 29 26,V2 29 25,V2 29 24,V2 29 23,V2 29 22,V2 29 21,V2 29 20,V2 29 19]
 drawInt :: Int -> Int -> IO Int
 drawInt x y = getStdRandom (randomR (x, y))
 
 -- | Initialize a paused game with random food location
 initGame :: IO Game
 initGame = do
+  -- streaming of random pillar length
   (randp :| randps) <-
     fromList . randomRs (0 + offset, (height `div` 3) + offset) <$> newStdGen
+  -- hard code initial pillar length
   a <- drawInt (0 + offset) ((height `div` 3) + offset)
   b <- drawInt (0 + offset) ((height `div` 3) + offset)
   c <- drawInt (0 + offset) ((height `div` 3) + offset)
@@ -194,7 +202,8 @@ initGame = do
             _pl3 = c,
             _x1 = width - 1,
             _x2 = width * 2 `div` 3,
-            _x3 = width `div` 3
+            _x3 = width `div` 3,
+            _wall = 0
           }
   return $ execState nextRandomPillar g
 
