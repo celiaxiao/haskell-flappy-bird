@@ -80,16 +80,53 @@ app =
       appAttrMap = const theMap
     }
 
--- addscorelist :: Snake.Game -> [Integer] -> Snake.Game
--- addscorelist g@Snake.Game {_bird1 = a, _bird2 = b, _isnetwork = net, _dir = d, _dead = l, _paused = p, _score = s, _locked = m, _bonus = f, _historyscore = old} h =
---   Snake.Game {_bird1 = a, _bird2 = b, _isnetwork = net, _dir = d, _dead = l, _paused = p, _score = s, _locked = m, _bonus = f, _historyscore = h}
-
--- addscorelist :: Snake.Game -> [Integer] -> Snake.Game
--- addscorelist
---   g@Game
---     { _historyscore = old
---     }
---   h = g & historyscore .~ h
+addscorelist :: Snake.Game -> [Int] -> Snake.Game
+addscorelist
+  g@Snake.Game
+    { _historyscore = old,
+      _bird1 = a,
+      _bird2 = b,
+      _isnetwork = net,
+      _dir = d,
+      _dead = l,
+      _paused = p,
+      _score = s,
+      _locked = m,
+      _randP = rp,
+      _randPs = rps,
+      _pl1 = pl1,
+      _pl2 = pl2,
+      _pl3 = pl3,
+      _x1 = x1,
+      _x2 = x2,
+      _x3 = x3,
+      _wall = w,
+      _bonus = bo,
+      _bonusList = bs
+    }
+  h =
+    Snake.Game
+      { _historyscore = h,
+        _bird1 = a,
+        _bird2 = b,
+        _isnetwork = net,
+        _dir = d,
+        _dead = l,
+        _paused = p,
+        _score = s,
+        _locked = m,
+        _randP = rp,
+        _randPs = rps,
+        _pl1 = pl1,
+        _pl2 = pl2,
+        _pl3 = pl3,
+        _x1 = x1,
+        _x2 = x2,
+        _x3 = x3,
+        _wall = w,
+        _bonus = bo,
+        _bonusList = bs
+      }
 
 split :: String -> [String]
 split [] = [""]
@@ -99,13 +136,17 @@ split (c : cs)
   where
     rest = split cs
 
--- scorelist :: [Integer]
--- scorelist = [1,2,3,4,5]
--- writescore::Game -> IO Game
--- writescore g@Game { _dir = d,_score=s} = do
---       let x = show s
---       appendFile "/home/cse230/Desktop/test.txt" (x ++ "\n")
---       return g
+scorelist :: [Integer]
+scorelist = [1, 2, 3, 4, 5]
+
+filename :: String
+filename = "test.txt"
+
+writescore :: Game -> IO Game
+writescore g@Game {_dir = d, _score = s} = do
+  let x = show s
+  appendFile filename (x ++ "\n")
+  return g
 
 main :: IO ()
 main = do
@@ -113,7 +154,7 @@ main = do
   forkIO $
     forever $ do
       writeBChan chan Tick
-      threadDelay 200000 -- decides how fast your game moves
+      threadDelay 500000 -- decides how fast your game moves
   g <- initGame
   let builder = V.mkVty V.defaultConfig
   initialVty <- builder
@@ -139,6 +180,7 @@ handleEvent g (VtyEvent (V.EvKey (V.KChar 'l') [])) = continue $ turn East g
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'h') [])) = continue $ turn West g
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'r') [])) = liftIO (initGame) >>= continue
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt g
+handleEvent g (VtyEvent (V.EvKey (V.KChar 's') [])) = liftIO (writescore g) >>= continue
 handleEvent g (VtyEvent (V.EvKey V.KEsc [])) = halt g
 handleEvent g _ = continue g
 
@@ -179,10 +221,12 @@ drawScore n =
           str $ show n
 
 drawGameOver :: Game -> Widget Name
-drawGameOver g@Game {_historyscore = history} =
+drawGameOver g@Game {_historyscore = history, _score = s} =
   vBox $
     str "   Game Over" :
-    str " Your Score is" :
+    str (" Your Score is: " ++ (show s)) :
+    str "To save the score in leaderboard, press s" :
+    str "Leaderboard:" :
     (str <$> ["\t" <> (show i) | i <- history])
 
 -- "Line " <>
@@ -192,8 +236,6 @@ drawGameOver g@Game {_historyscore = history} =
 --                    then withAttr customAttr (str $ "<" <> s <> ">")
 --                    else str s
 --     in C.hCenter $ str "Item " <+> (selStr $ show a)
-
--- $ str $ show n
 
 drawGrid :: Game -> Widget Name
 drawGrid g =

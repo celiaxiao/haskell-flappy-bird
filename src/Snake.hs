@@ -42,6 +42,7 @@ import Linear.V2 (V2 (..), _x, _y)
 import System.IO
 import System.Random (Random (..), getStdRandom, newStdGen)
 
+
 -- Types
 
 data Game = Game
@@ -65,7 +66,7 @@ data Game = Game
     _locked :: Bool,
     -- | lock to disallow duplicate turns between time steps
     -- from C branch
-    _historyscore :: [Integer],
+    _historyscore :: [Int],
     _pl1 :: Int,
     _pl2 :: Int,
     _pl3 :: Int,
@@ -97,10 +98,13 @@ makeLenses ''Game
 -- Constants
 
 height, width, gapSize, offset :: Int
-height = 30
-width = 30
+height = 50
+width = 50
 gapSize = height * 3 `div` 10
 offset = height `div` 6
+
+filename :: String
+filename = "test.txt"
 
 -- Functions
 split :: String -> [String]
@@ -128,6 +132,37 @@ step s = flip execState s . runMaybeT $ do
   MaybeT . fmap Just $ locked .= False
   -- generatePillar or move;
   generatePillar <|> MaybeT (Just <$> modify move)
+
+
+-- newtype Op a = State Game ()
+
+-- liftIO :: IO a -> Op a
+-- liftIO io = Op $ \st -> do
+--   x <- io
+  -- return (st, x)
+
+-- writescore :: Game -> IO ()
+-- writescore :: Game -> State Game ()
+-- writescore g@Game {_score = s} = 
+--   do
+--     let x = show s
+--     _ <- appendFile filename (x ++ "\n")
+--     return g
+
+-- die :: MaybeT (StateT Game m) ()
+-- die g = case (isdie g) of
+--     False -> g
+--     True -> g -- do
+        -- return =<< liftIO (writescore g)
+      -- True -> do
+      --   MaybeT . fmap Just $ do
+      --     _ <- writescore g
+      --     return g
+    -- MaybeT . fmap guard $ (==) <$> (isdie <$> get) <*> use trueFlag
+    -- MaybeT . fmap Just $ do
+      -- _ <- writescore g
+      -- return g
+
 
 generatePillar :: MaybeT (State Game) ()
 generatePillar = do
@@ -296,15 +331,25 @@ turnDir n c
   | c `elem` [East, West] && n `elem` [North, South] = n
   | otherwise = c
 
-addscorelist :: Game -> [Integer] -> Game
+addscorelist :: Game -> [Int] -> Game
 addscorelist
   g@Game
     { _historyscore = old
     }
   h = g & historyscore .~ h
 
+
+
 drawInt :: Int -> Int -> IO Int
 drawInt x y = getStdRandom (randomR (x, y))
+
+
+writescore :: Game -> IO Game
+writescore g@Game {_score = s} =
+  do
+    let x = show s
+    _ <- appendFile filename (x ++ "\n")
+    return g
 
 -- | Initialize a paused game with random food location
 initGame :: IO Game
@@ -313,6 +358,8 @@ initGame = do
   (bo :| bs) <-
     fromList . randomRs (V2 (width `div` 4) (height `div` 4), V2 (width `div` 4) (height * 3 `div` 4)) <$> newStdGen
   -- streaming of random pillar length
+  contents <- readFile filename
+    
   (randp :| randps) <-
     fromList . randomRs (0 + offset, (height `div` 3) + offset) <$> newStdGen
   -- hard code initial pillar length
@@ -323,9 +370,9 @@ initGame = do
       ym = height `div` 2
       bonusx = 15
       bonusy = 15
-      -- x = init $ split contents
-      -- y = sort [ read a::Integer | a <-x]
-      -- result = take 5 y
+      x = init $ split contents     
+      y = sort [read a :: Int | a <- x]
+      result = take 5 y
       g =
         Game
           { _bird1 = S.singleton (V2 xm ym),
@@ -339,7 +386,7 @@ initGame = do
             _paused = True,
             _locked = False,
             _isnetwork = False,
-            _historyscore = [], -- result TODO
+            _historyscore = result,
             -- from C branch
             _randP = randp,
             _randPs = randps,
