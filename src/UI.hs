@@ -67,14 +67,14 @@ split (c:cs)
     | otherwise = (c : head rest) : tail rest 
     where rest = split cs
 
--- scorelist :: [Integer]
--- scorelist = [1,2,3,4,5]
--- writescore::Game -> IO Game
--- writescore g@Game { _dir = d,_score=s} = do
---       let x = show s
---       appendFile "/home/cse230/Desktop/test.txt" (x ++ "\n")
---       return g
+scorelist :: [Integer]
+scorelist = [1,2,3,4,5]
 
+writescore::Game -> IO Game
+writescore g@Game { _dir = d,_score=s} = do
+      let x = show s
+      appendFile filename (x ++ "\n")
+      return g
 
 main :: IO ()
 main = do
@@ -122,7 +122,7 @@ drawUI g@Game{_isnetwork=s} = if s then [ C.center $ padRight (Pad 2) (drawStats
 
 drawStats :: Game -> Widget Name
 drawStats g@Game{_dead = d} = 
-  if d==False 
+  if d==False -- not dead
   then 
       hLimit 11 $ vBox [ drawScore (g ^. score)
          , padTop (Pad 2) $ emptyWidget
@@ -183,7 +183,9 @@ drawGridSingle g = withBorderStyle BS.unicodeBold
       | c `elem` g ^. bird1 = Food
       | isPillar g c        = Snake
       | otherwise           = Empty
-      -- | c == g ^. food      = Food
+
+filename :: String
+filename = "test.txt"
 
 isPillar :: Game -> V2 Int -> Bool
 isPillar g (V2 x y)

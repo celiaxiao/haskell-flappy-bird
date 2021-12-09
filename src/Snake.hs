@@ -33,6 +33,8 @@ import Data.Sequence (Seq(..), (<|))
 import qualified Data.Sequence as S
 import Linear.V2 (V2(..), _x, _y)
 import System.Random (Random (..), getStdRandom, newStdGen)
+import System.Directory (getCurrentDirectory, createDirectory, doesFileExist)
+import Control.Monad.IO.Class (liftIO)
 
 -- Types
 
@@ -58,6 +60,7 @@ data Game = Game
   , _wall :: Int
   , _randP :: Int
   , _randPs :: Stream Int
+  , _trueFlag :: Bool
   } deriving (Show)
 
 type Coord = V2 Int
@@ -81,10 +84,13 @@ makeLenses ''Game
 -- Constants
 
 height, width, gapSize, offset :: Int
-height = 30
-width = 30
+height = 50
+width = 50
 gapSize = height * 3 `div` 10
 offset = height `div` 6
+
+filename :: String
+filename = "test.txt"
 
 -- Functions
 split :: String -> [String] 
@@ -178,6 +184,30 @@ step s = flip execState s . runMaybeT $ do
   -- TODO: generatePillar or move; without generatePillar the 5th pillar is not random. With generatePillar we can't move
   generatePillar <|> MaybeT (Just <$> modify move)
 
+
+-- newtype Op a = State Game ()
+
+-- liftIO :: IO a -> Op a
+-- liftIO io = Op $ \st -> do
+--   x <- io
+  -- return (st, x)
+
+-- writescore :: Game -> IO ()
+-- writescore :: Game -> State Game ()
+writescore g@Game {_score = s} = 
+  do
+    let x = show s
+    appendFile filename (x ++ "\n")
+    return ()
+
+-- die :: MaybeT (StateT Game m) ()
+die =
+  do
+    MaybeT . fmap guard $ (==) <$> (isdie <$> get) <*> use trueFlag
+    MaybeT . fmap Just $ do
+      writescore g
+
+
 generatePillar :: MaybeT (State Game) ()
 generatePillar = do
   MaybeT . fmap guard $ (==) <$> (distanceToWall <$> get) <*> use wall
@@ -228,15 +258,11 @@ nextX g x = (x -1) `mod` width
 distanceToWall :: Game -> Int
 distanceToWall Game {_x1 = xx1, _x2 = xx2, _x3 = xx3} = minimum [x | x <- [xx1, xx2, xx3]]
 
--- writescore::Game -> IO Game
--- writescore g@Game { _dir = d, _bird1 = ((V2 xm ym) :<| _) ,_score=s} = do
---       let x = show s
---       appendFile "/home/cse230/Desktop/test.txt" (x ++ "\n")
---       return g -- TODO create file
-
 
 isdie :: Game -> Bool
-isdie g@Game { _dir = d, _bird1 = ((V2 xm ym) :<| _) ,_score=s} = if ym == 0 || ym==height then True else False
+isdie g@Game { _dir = d, _bird1 = ((V2 xm ym) :<| _) ,_score=s} = 
+  if ym == 0 || ym==height then True else False
+isdie _ = False
 -- TODO collision
 
 
@@ -247,24 +273,6 @@ isdie g@Game { _dir = d, _bird1 = ((V2 xm ym) :<| _) ,_score=s} = if ym == 0 || 
 
 -- ScoreModify::
 
-
--- | Possibly eat food if next head position is food
--- eatFood :: MaybeT (State Game) ()
--- eatFood = do
---   MaybeT . fmap guard $ (==) <$> (nextHead <$> get) <*> (use food)
---   MaybeT . fmap Just $ do
---     modifying score (+ 10)
---     get >>= \g -> modifying snake (nextHead g <|)
---     nextFood
-
--- | Set a valid next food coordinate
--- nextFood :: State Game ()
--- nextFood = do
---   (f :| fs) <- use foods
---   foods .= fs
---   elem f <$> use snake >>= \case
---     True -> nextFood
---     False -> food .= f
 
 -- | Move snake along in a marquee fashion
 move :: Game -> Game
@@ -298,15 +306,6 @@ nextHead Game { _dir = d, _bird1 = (a :<| _) }
   | d == East  = a & _y %~ (\y -> (y - 1) `mod` height)
   | d == West  = a & _y %~ (\y -> (y - 1) `mod` height)
 nextHead _ = error "Snakes can't be empty!"
-
-
--- pillarnextHead :: Game -> Coord
--- pillarnextHead Game { _dir = d, _pillar = (a :<| _) } 
---   | d == North = a & _x %~ (\x -> (x - 1) `mod` width) 
---   | d == South = a & _x %~ (\x -> (x - 1) `mod` width)
---   | d == East  = a & _x %~ (\x -> (x - 1) `mod` width)
---   | d == West  = a & _x %~ (\x -> (x - 1) `mod` width)
--- pillarnextHead _ = error "Snakes can't be empty!"
 
 
 moveHead :: Game -> Coord
@@ -365,15 +364,17 @@ addscorelist g@Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=
     }
 
 
+
+
 drawInt :: Int -> Int -> IO Int
 drawInt x y = getStdRandom (randomR (x, y))
 
 -- | Initialize a paused game with random food location
 initGame ::  IO Game
 initGame = do
-  -- contents <- readFile "/home/cse230/Desktop/test.txt"
+  contents <- readFile filename
   -- (f :| fs) <-
-  --   fromList . randomRs (V2 0 0, V2 (width - 1) (height - 1)) <$> newStdGen
+  --   fromList . randomRs (V2 0 0, V2 (width - 1) (height - 1)) <> newStdGen
     -- streaming of random pillar length
   (randp :| randps) <-
     fromList . randomRs (0 + offset, (height `div` 3) + offset) <$> newStdGen
@@ -385,12 +386,12 @@ initGame = do
       ym = height `div` 2
       bonusx = 15
       bonusy = 15
-      -- x = init $ split contents
-      -- y = sort [ read a::Integer | a <-x]
-      -- result = take 5 y
+      x = init $ split contents
+      y = sort [ read a::Integer | a <-x]
+      result = take 5 y
       g  = Game
         { _bird1  = (S.singleton (V2 xm ym)),
-          _bird2 = (S.singleton (V2 xm ym))
+          _bird2  = (S.singleton (V2 xm ym))
         , _food   = (V2 bonusx bonusy)
         -- , _foods  = fs
         , _score  = 0
@@ -399,7 +400,7 @@ initGame = do
         , _paused = True
         , _locked = False
         ,_isnetwork = False
-        ,_historyscore = [] -- result TODO
+        ,_historyscore = result
         -- from C branch
         , _randP = randp
         , _randPs = randps
@@ -410,6 +411,7 @@ initGame = do
         , _x2 = width * 2 `div` 3
         , _x3 = width `div` 3
         , _wall = 0
+        , _trueFlag = True
         }
   return g
 
