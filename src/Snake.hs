@@ -240,6 +240,12 @@ isdie g@Game { _dir = d, _bird1 = ((V2 xm ym) :<| _) ,_score=s} = if ym == 0 || 
 -- TODO collision
 
 
+birdtoint::Bird -> int
+birdtoint ((V2 xm ym) :<| _) = ym
+
+inttobird:: Int -> Int ->  Bird
+inttobird xm ym = (S.singleton (V2 xm ym))
+
 -- if ym == 1 || ym==20 then True else False
 -- iscollision :: Game -> Bool
 -- iscollision 
