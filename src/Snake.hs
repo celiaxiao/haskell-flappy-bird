@@ -11,6 +11,14 @@ module Snake
   -- , dead, food, score, snake
   , dead,  score, bird1, bird2
   , height, width
+  -- from C branch
+  ,pl1
+  ,pl2
+  ,pl3
+  ,x1
+  ,x2
+  ,x3
+  ,step2
   ) where
 import System.IO
 import Control.Applicative ((<|>))
@@ -24,7 +32,7 @@ import Control.Monad.Extra (orM)
 import Data.Sequence (Seq(..), (<|))
 import qualified Data.Sequence as S
 import Linear.V2 (V2(..), _x, _y)
-import System.Random (Random(..), newStdGen)
+import System.Random (Random (..), getStdRandom, newStdGen)
 
 -- Types
 
@@ -39,7 +47,17 @@ data Game = Game
   , _paused :: Bool         -- ^ paused flag
   , _score  :: Int          -- ^ score
   , _locked :: Bool   
-  ,_historyscore :: [Integer]      -- ^ lock to disallow duplicate turns between time steps
+  , _historyscore :: [Integer]      -- ^ lock to disallow duplicate turns between time steps
+  -- from C branch
+  , _pl1 :: Int
+  , _pl2 :: Int
+  , _pl3 :: Int
+  , _x1 :: Int
+  , _x2 :: Int
+  , _x3 :: Int
+  , _wall :: Int
+  , _randP :: Int
+  , _randPs :: Stream Int
   } deriving (Show)
 
 type Coord = V2 Int
@@ -62,9 +80,11 @@ makeLenses ''Game
 
 -- Constants
 
-height, width :: Int
-height = 20
-width = 20
+height, width, gapSize, offset :: Int
+height = 30
+width = 30
+gapSize = height * 3 `div` 10
+offset = height `div` 6
 
 -- Functions
 split :: String -> [String] 
@@ -73,42 +93,151 @@ split (c:cs)
     | c == '\n' = "" : rest 
     | otherwise = (c : head rest) : tail rest 
     where rest = split cs
+    
 -- | Step forward in time
+step2 :: Game -> Game
+step2
+  g@Game
+    { _dead = l,
+      _score = s,
+      -- the rest
+      _bird1 = a,
+      _bird2 = b,
+      _isnetwork = net,
+      _dir = d,
+      _paused = p,
+      _locked = m,
+      _food = f,
+      _randP = rp,
+      _randPs = rps,
+      _pl1 = pl1,
+      _pl2 = pl2,
+      _pl3 = pl3,
+      _x1 = x1,
+      _x2 = x2,
+      _x3 = x3,
+      _wall = w, 
+      _historyscore = h
+    } =
+    if isdie g
+      then
+        Game
+          { _dead = True,
+            _score = s,
+            -- the rest
+            _bird1 = a,
+            _bird2 = b,
+            _isnetwork = net,
+            _dir = d,
+            _paused = p,
+            _locked = m,
+            _food = f,
+            _randP = rp,
+            _randPs = rps,
+            _pl1 = pl1,
+            _pl2 = pl2,
+            _pl3 = pl3,
+            _x1 = x1,
+            _x2 = x2,
+            _x3 = x3,
+            _wall = w,
+            _historyscore = h
+          }
+      else
+        move
+          Game
+            { _dead = l,
+              _score = s + 5,
+              -- the rest
+              _bird1 = a,
+              _bird2 = b,
+              _isnetwork = net,
+              _dir = d,
+              _paused = p,
+              _locked = m,
+              _food = f,
+              _randP = rp,
+              _randPs = rps,
+              _pl1 = pl1,
+              _pl2 = pl2,
+              _pl3 = pl3,
+              _x1 = x1,
+              _x2 = x2,
+              _x3 = x3,
+              _wall = w,
+              _historyscore = h
+            }
+
 step :: Game -> Game
-step g@Game { _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = h} = if isdie g == True
-                                                                          -- then Game{_bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=True, _paused=p,_score=s,_locked=m,_food=f,_historyscore = h}
-                                                                          then Game{_bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=True, _paused=p,_score=s,_locked=m,_food=f,_historyscore = h}
-                                                                          else move Game { _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s+5,_locked=m ,_food=f,_historyscore = h}                                                                
--- step s = move 
--- -- step s = flip execState s . runMaybeT $ do
+step s = flip execState s . runMaybeT $ do
+  -- Make sure the game isn't paused or over
+  MaybeT $ guard . not <$> orM [use paused, use dead]
 
---   -- Make sure the game isn't paused or over
---   MaybeT $ guard . not <$> orM [use paused, use dead]
+  -- Unlock from last directional turn
+  MaybeT . fmap Just $ locked .= False
+  -- TODO: generatePillar or move; without generatePillar the 5th pillar is not random. With generatePillar we can't move
+  generatePillar <|> MaybeT (Just <$> modify move)
 
---   -- Unlock from last directional turn
---   -- MaybeT . fmap Just $ locked .= True
+generatePillar :: MaybeT (State Game) ()
+generatePillar = do
+  MaybeT . fmap guard $ (==) <$> (distanceToWall <$> get) <*> use wall
+  MaybeT . fmap Just $ do
+    get >>= \g -> modifying pl1 (nextP1 g)
+    get >>= \g -> modifying pl2 (nextP2 g)
+    get >>= \g -> modifying pl3 (nextP3 g)
+    get >>= \g -> modifying x1 (nextX g)
+    get >>= \g -> modifying x2 (nextX g)
+    get >>= \g -> modifying x3 (nextX g)
+    nextRandomPillar
 
---   -- die (moved into boundary), eat (moved into food), or move (move into space)
---   -- die <|> eatFood <|> MaybeT (Just <$> modify move)
---   die  <|> MaybeT (Just <$> modify move)
+nextRandomPillar :: State Game ()
+nextRandomPillar =
+  do
+    (randp :| randps) <- use randPs
+    randPs .= randps
+    g <- get
+    let touchWall = _x1 g == 0 || _x2 g == 0 || _x3 g == 0
+    if touchWall
+      then nextRandomPillar
+      else randP .= randp
 
--- | Possibly die if next head position is in snake
--- die :: MaybeT (State Game) ()
--- die = do
---   MaybeT . fmap guard $ elem <$> (lowboard <$> get) <*> (use _bird1)
---   MaybeT . fmap Just $ dead .= True
+-- generate the length of next pillar. If current x-coord is 0, it means we've touched the wall
+-- so we need to use a new random length `rp`. Else, we remain the same
+nextP :: Int -> Int -> Int -> Int
+nextP x rp p = if x /= 0 then p else rp
 
+-- generate the length of next pillar1
+nextP1 :: Game -> Int -> Int
+nextP1 g@Game {_x1 = xx1, _x2 = xx2, _x3 = xx3, _pl1 = ppl1, _pl2 = ppl2, _pl3 = ppl3, _randP = rp} p1 =
+  nextP xx1 rp ppl1
 
-writescore::Game -> IO Game
-writescore g@Game { _dir = d, _bird1 = ((V2 xm ym) :<| _) ,_score=s} = do
-      let x = show s
-      appendFile "/home/cse230/Desktop/test.txt" (x ++ "\n")
-      return g
+-- generate the length of next pillar2
+nextP2 :: Game -> Int -> Int
+nextP2 g@Game {_x1 = xx1, _x2 = xx2, _x3 = xx3, _pl1 = ppl1, _pl2 = ppl2, _pl3 = ppl3, _randP = rp} p2 =
+  nextP xx2 rp ppl2
+
+-- generate the length of next pillar3
+nextP3 :: Game -> Int -> Int
+nextP3 g@Game {_x1 = xx1, _x2 = xx2, _x3 = xx3, _pl1 = ppl1, _pl2 = ppl2, _pl3 = ppl3, _randP = rp} p3 =
+  nextP xx3 rp ppl3
+
+--move pillar to the left by decreasing the x-coord
+nextX :: Game -> Int -> Int
+nextX g x = (x -1) `mod` width
+
+distanceToWall :: Game -> Int
+distanceToWall Game {_x1 = xx1, _x2 = xx2, _x3 = xx3} = minimum [x | x <- [xx1, xx2, xx3]]
+
+-- writescore::Game -> IO Game
+-- writescore g@Game { _dir = d, _bird1 = ((V2 xm ym) :<| _) ,_score=s} = do
+--       let x = show s
+--       appendFile "/home/cse230/Desktop/test.txt" (x ++ "\n")
+--       return g -- TODO create file
 
 
 isdie :: Game -> Bool
-isdie g@Game { _dir = d, _bird1 = ((V2 xm ym) :<| _) ,_score=s} = if ym == 1 || ym==20 then True else False
-
+isdie g@Game { _dir = d, _bird1 = ((V2 xm ym) :<| _) ,_score=s} = if ym == 0 || ym==height then True else False
+-- TODO collision
 
 
 -- if ym == 1 || ym==20 then True else False
@@ -139,9 +268,18 @@ isdie g@Game { _dir = d, _bird1 = ((V2 xm ym) :<| _) ,_score=s} = if ym == 1 || 
 
 -- | Move snake along in a marquee fashion
 move :: Game -> Game
-move g@Game { _bird1 = (s :|> _) } = g & bird1 .~ (nextHead g <| s)
-move _                             = error "Snakes can't be empty!"
-
+move g@Game {_bird1 = (s :|> _), _x1 = xx1, _x2 = xx2, _x3 = xx3, _dead = l, _score = sc} =
+  g & bird1 .~ (nextHead g <| s)
+    & x1 .~ ((xx1 -1) `mod` width)
+    & x2 .~ ((xx2 -1) `mod` width)
+    & x3 .~ ((xx3 -1) `mod` width)
+    & if isdie g
+      then dead .~ True -- & score .~ sc
+      else dead .~ False
+    -- & if isdie g TODO
+    --   then score .~ sc
+    --   else score .~ sc + 10
+move _ = error "Snakes can't be empty!"
 
 
 lowboard :: Game -> Coord
@@ -194,22 +332,62 @@ turnDir n c | c `elem` [North, South] && n `elem` [East, West] = n
             | otherwise = c
 
 addscorelist :: Game -> [Integer] -> Game
-addscorelist g@Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = old} h = 
-  Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = h}
+addscorelist g@Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = old,
+      _randP = rp,
+      _randPs = rps,
+      _pl1 = pl1,
+      _pl2 = pl2,
+      _pl3 = pl3,
+      _x1 = x1,
+      _x2 = x2, 
+      _x3 = x3,
+      _wall = w} h = 
+  Game
+    { _bird1 = a,
+      _bird2 = b,
+      _isnetwork = net,
+      _dir = d,
+      _dead = l,
+      _paused = p,
+      _score = s,
+      _locked = m,
+      _food = f,
+      _historyscore = h,
+      _randP = rp,
+      _randPs = rps,
+      _pl1 = pl1,
+      _pl2 = pl2,
+      _pl3 = pl3,
+      _x1 = x1,
+      _x2 = x2,
+      _x3 = x3,
+      _wall = w
+    }
+
+
+drawInt :: Int -> Int -> IO Int
+drawInt x y = getStdRandom (randomR (x, y))
 
 -- | Initialize a paused game with random food location
 initGame ::  IO Game
 initGame = do
-  contents <- readFile "/home/cse230/Desktop/test.txt"
-  (f :| fs) <-
-    fromList . randomRs (V2 0 0, V2 (width - 1) (height - 1)) <$> newStdGen
+  -- contents <- readFile "/home/cse230/Desktop/test.txt"
+  -- (f :| fs) <-
+  --   fromList . randomRs (V2 0 0, V2 (width - 1) (height - 1)) <$> newStdGen
+    -- streaming of random pillar length
+  (randp :| randps) <-
+    fromList . randomRs (0 + offset, (height `div` 3) + offset) <$> newStdGen
+  -- hard code initial pillar length
+  a <- drawInt (0 + offset) ((height `div` 3) + offset)
+  b <- drawInt (0 + offset) ((height `div` 3) + offset)
+  c <- drawInt (0 + offset) ((height `div` 3) + offset)
   let xm = width `div` 2
       ym = height `div` 2
       bonusx = 15
       bonusy = 15
-      x = init $ split contents
-      y = sort [ read a::Integer | a <-x]
-      result = take 5 y
+      -- x = init $ split contents
+      -- y = sort [ read a::Integer | a <-x]
+      -- result = take 5 y
       g  = Game
         { _bird1  = (S.singleton (V2 xm ym)),
           _bird2 = (S.singleton (V2 xm ym))
@@ -221,7 +399,17 @@ initGame = do
         , _paused = True
         , _locked = False
         ,_isnetwork = False
-        ,_historyscore = result
+        ,_historyscore = [] -- result TODO
+        -- from C branch
+        , _randP = randp
+        , _randPs = randps
+        , _pl1 = a
+        , _pl2 = b
+        , _pl3 = c
+        , _x1 = width - 1
+        , _x2 = width * 2 `div` 3
+        , _x3 = width `div` 3
+        , _wall = 0
         }
   return g
 

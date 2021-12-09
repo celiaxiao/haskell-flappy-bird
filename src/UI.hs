@@ -69,11 +69,11 @@ split (c:cs)
 
 -- scorelist :: [Integer]
 -- scorelist = [1,2,3,4,5]
-writescore::Game -> IO Game
-writescore g@Game { _dir = d,_score=s} = do
-      let x = show s
-      appendFile "/home/cse230/Desktop/test.txt" (x ++ "\n")
-      return g
+-- writescore::Game -> IO Game
+-- writescore g@Game { _dir = d,_score=s} = do
+--       let x = show s
+--       appendFile "/home/cse230/Desktop/test.txt" (x ++ "\n")
+--       return g
 
 
 main :: IO ()
@@ -95,7 +95,7 @@ main = do
 -- Handling events
 
 handleEvent :: Game -> BrickEvent Name Tick -> EventM Name (Next Game)
-handleEvent g (AppEvent Tick)                       = continue $ step g
+handleEvent g (AppEvent Tick)                       = continue $ step2 (step g)
 handleEvent g (VtyEvent (V.EvKey V.KUp []))         = continue $ turn North g
 handleEvent g (VtyEvent (V.EvKey V.KDown []))       = continue $ turn South g
 handleEvent g (VtyEvent (V.EvKey V.KRight []))      = continue $ turn East g
@@ -115,11 +115,10 @@ isConnect :: Game -> Bool
 isConnect g@Game{_isnetwork = s} = if s== False then False else True
 
 drawGame :: Game -> [Widget Name]
-drawGame g@Game{_dead=d} = if d==True then [ C.center $ padRight (Pad 2) (drawStats g)] else drawUI g
+drawGame g@Game{_dead=d} = if d then [ C.center $ padRight (Pad 2) (drawStats g)] else drawUI g
 
 drawUI :: Game -> [Widget Name]
-drawUI g@Game{_isnetwork=s} = if s==True then [ C.center $ padRight (Pad 2) (drawStats g) <+> drawGrid g ] else [ C.center $ padRight (Pad 2) (drawStats g) <+> drawGridSingle g ]
-
+drawUI g@Game{_isnetwork=s} = if s then [ C.center $ padRight (Pad 2) (drawStats g) <+> drawGrid g ] else [ C.center $ padRight (Pad 2) (drawStats g) <+> drawGridSingle g ]
 
 drawStats :: Game -> Widget Name
 drawStats g@Game{_dead = d} = 
@@ -167,9 +166,9 @@ drawGrid g = withBorderStyle BS.unicodeBold
     cellsInRow y = [drawCoord (V2 x y) | x <- [0..width-1]]
     drawCoord    = drawCell . cellAt
     cellAt c
-      | c `elem` g ^. bird2 = Snake
-      | c `elem` g ^. bird1 = Snake
-      | c == g ^. food      = Food
+      | c `elem` g ^. bird2 = Food
+      | c `elem` g ^. bird1 = Food
+      | isPillar g c        = Snake
       | otherwise           = Empty
 
 drawGridSingle :: Game -> Widget Name
@@ -181,11 +180,20 @@ drawGridSingle g = withBorderStyle BS.unicodeBold
     cellsInRow y = [drawCoord (V2 x y) | x <- [0..width-1]]
     drawCoord    = drawCell . cellAt
     cellAt c
-      | c `elem` g ^. bird1 = Snake
-      | c == g ^. food      = Food
+      | c `elem` g ^. bird1 = Food
+      | isPillar g c        = Snake
       | otherwise           = Empty
+      -- | c == g ^. food      = Food
 
+isPillar :: Game -> V2 Int -> Bool
+isPillar g (V2 x y)
+  | x == g ^. x1 && (y `elem` [0 .. g ^. pl1] ++ [g ^. pl1 + gapSize .. height]) = True
+  | x == g ^. x2 && (y `elem` [0 .. g ^. pl2] ++ [g ^. pl2 + gapSize .. height]) = True
+  | x == g ^. x3 && (y `elem` [0 .. g ^. pl3] ++ [g ^. pl3 + gapSize .. height]) = True
+  | otherwise = False
 
+gapSize :: Int
+gapSize = height * 3 `div` 10
 
 drawCell :: Cell -> Widget Name
 drawCell Snake = withAttr snakeAttr cw
