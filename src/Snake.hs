@@ -12,11 +12,11 @@ module Snake
   , dead,  score, bird1, bird2
   , height, width
   ) where
-
+import System.IO
 import Control.Applicative ((<|>))
 import Control.Monad (guard)
 import Data.Maybe (fromMaybe)
-
+import Data.List
 import Control.Lens hiding ((<|), (|>), (:>), (:<))
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.State
@@ -38,7 +38,8 @@ data Game = Game
   , _dead   :: Bool         -- ^ game over flag
   , _paused :: Bool         -- ^ paused flag
   , _score  :: Int          -- ^ score
-  , _locked :: Bool         -- ^ lock to disallow duplicate turns between time steps
+  , _locked :: Bool   
+  ,_historyscore :: [Integer]      -- ^ lock to disallow duplicate turns between time steps
   } deriving (Show)
 
 type Coord = V2 Int
@@ -66,12 +67,18 @@ height = 20
 width = 20
 
 -- Functions
-
+split :: String -> [String] 
+split [] = [""] 
+split (c:cs) 
+    | c == '\n' = "" : rest 
+    | otherwise = (c : head rest) : tail rest 
+    where rest = split cs
 -- | Step forward in time
 step :: Game -> Game
-step g@Game { _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f} = if isdie g == True
-                                                                          then Game{_bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=True, _paused=p,_score=s,_locked=m,_food=f}
-                                                                          else move Game { _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s+10,_locked=m ,_food=f}                                                                
+step g@Game { _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = h} = if isdie g == True
+                                                                          -- then Game{_bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=True, _paused=p,_score=s,_locked=m,_food=f,_historyscore = h}
+                                                                          then Game{_bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=True, _paused=p,_score=s,_locked=m,_food=f,_historyscore = h}
+                                                                          else move Game { _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s+5,_locked=m ,_food=f,_historyscore = h}                                                                
 -- step s = move 
 -- -- step s = flip execState s . runMaybeT $ do
 
@@ -92,10 +99,19 @@ step g@Game { _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_scor
 --   MaybeT . fmap Just $ dead .= True
 
 
+writescore::Game -> IO Game
+writescore g@Game { _dir = d, _bird1 = ((V2 xm ym) :<| _) ,_score=s} = do
+      let x = show s
+      appendFile "/home/cse230/Desktop/test.txt" (x ++ "\n")
+      return g
+
+
 isdie :: Game -> Bool
-isdie g@Game { _dir = d, _bird1 = ((V2 xm ym) :<| _) } = if ym == 1 || ym==20
-                                                         then True
-                                                         else False
+isdie g@Game { _dir = d, _bird1 = ((V2 xm ym) :<| _) ,_score=s} = if ym == 1 || ym==20 then True else False
+
+
+
+-- if ym == 1 || ym==20 then True else False
 -- iscollision :: Game -> Bool
 -- iscollision 
 
@@ -177,15 +193,23 @@ turnDir n c | c `elem` [North, South] && n `elem` [East, West] = n
             | c `elem` [East, West] && n `elem` [North, South] = n
             | otherwise = c
 
+addscorelist :: Game -> [Integer] -> Game
+addscorelist g@Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = old} h = 
+  Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = h}
+
 -- | Initialize a paused game with random food location
-initGame :: IO Game
+initGame ::  IO Game
 initGame = do
+  contents <- readFile "/home/cse230/Desktop/test.txt"
   (f :| fs) <-
     fromList . randomRs (V2 0 0, V2 (width - 1) (height - 1)) <$> newStdGen
   let xm = width `div` 2
       ym = height `div` 2
       bonusx = 15
       bonusy = 15
+      x = init $ split contents
+      y = sort [ read a::Integer | a <-x]
+      result = take 5 y
       g  = Game
         { _bird1  = (S.singleton (V2 xm ym)),
           _bird2 = (S.singleton (V2 xm ym))
@@ -197,6 +221,7 @@ initGame = do
         , _paused = True
         , _locked = False
         ,_isnetwork = False
+        ,_historyscore = result
         }
   return g
 

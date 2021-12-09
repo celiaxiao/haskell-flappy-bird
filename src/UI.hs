@@ -56,6 +56,10 @@ app = App { appDraw = drawGame
           , appAttrMap = const theMap
           }
 
+addscorelist :: Snake.Game -> [Integer] -> Snake.Game
+addscorelist g@Snake.Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = old} h = 
+  Snake.Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = h}
+
 split :: String -> [String] 
 split [] = [""] 
 split (c:cs) 
@@ -63,16 +67,30 @@ split (c:cs)
     | otherwise = (c : head rest) : tail rest 
     where rest = split cs
 
+-- scorelist :: [Integer]
+-- scorelist = [1,2,3,4,5]
+writescore::Game -> IO Game
+writescore g@Game { _dir = d,_score=s} = do
+      let x = show s
+      appendFile "/home/cse230/Desktop/test.txt" (x ++ "\n")
+      return g
+
+
 main :: IO ()
 main = do
   chan <- newBChan 10
   forkIO $ forever $ do
     writeBChan chan Tick
     threadDelay 400000 -- decides how fast your game moves
-  g <- initGame
+  g <- initGame 
   let builder = V.mkVty V.defaultConfig
   initialVty <- builder
+  -- endgame <- writescore g
+  -- customMain initialVty builder (Just chan) app g
+  -- endgame <- writescore g
   void $ customMain initialVty builder (Just chan) app g
+  -- endgame <- writescore g
+  -- void $ customMain initialVty builder (Just chan) app g
 
 -- Handling events
 
@@ -125,54 +143,10 @@ drawScore n = withBorderStyle BS.unicodeBold
   $ padAll 1
   $ str $ show n
 
--- drawGameOver :: Bool -> Widget Name
--- drawGameOver dead =
---   if dead
---      then withAttr gameOverAttr $ C.hCenter $ str "GAME OVER"
---      else emptyWidget
-
--- drawUI :: (Show a) => L.List () a -> [Widget ()]
--- drawUI l = [ui]
---     where
---         -- label = str "Item " <+> cur <+> str " of " <+> total
---         label = str "Game Over"
---         -- cur = case l^.(L.listSelectedL) of
---         --         Nothing -> str "-"
---         --         Just i  -> str (show (i + 1))
---         -- total = str $ show $ Vec.length $ l^.(L.listElementsL)
---         box = B.borderWithLabel label $
---               hLimit 25 $
---               vLimit 15 $
---               L.renderList listDrawElement True l
---         ui = C.vCenter $ vBox [ C.hCenter box
---                               , str " "
---                             --   , C.hCenter $ str "Press +/- to add/remove list elements."
---                             --   , C.hCenter $ str "Press Esc to exit."
---                               ]
-
-
-
--- readfilecontent = do
---     contents <- readFile "/home/cse230/Desktop/test.txt"
---     let x = init $ split contents
---     let y = sort [ read a::Integer | a <-x]
---     let result = take 5 y
---     return drawGameOver True result
-
-
--- readfilecontent :: Handle ->  [Integer]
--- readfilecontent inputfile = do
---       contents <- hGetContents inputfile
---       let x = init $ split contents
---       let y = sort [ read a::Integer | a <-x]
---       let result = take 5 y
---       return result
-
-
 drawGameOver :: Game ->  Widget Name
-drawGameOver g  =  vBox $ str "   Game Over" :
+drawGameOver g@Game{_historyscore=history}  =  vBox $ str "   Game Over" :
                              str " Your Score is" :
-                             (str <$>  ["\t" <>  (show i) | i <- [g ^.score] ])
+                             (str <$>  ["\t" <>  (show i) | i <- history ])
 
 -- "Line " <> 
 -- listDrawElement :: (Show a) => Bool -> a -> Widget ()
