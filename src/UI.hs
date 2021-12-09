@@ -2,11 +2,8 @@
 
 module UI where
 
-<<<<<<< HEAD
-=======
 -- import Data.List.Split
 
->>>>>>> master
 import Brick
   ( App (..),
     AttrMap,
@@ -38,25 +35,16 @@ import Brick
     (<+>),
   )
 import Brick.BChan (newBChan, writeBChan)
-<<<<<<< HEAD
-import qualified Brick.Widgets.Border as B
-import qualified Brick.Widgets.Border.Style as BS
-import qualified Brick.Widgets.Center as C
-=======
 import qualified Brick.Main as M
 import qualified Brick.Widgets.Border as B
 import qualified Brick.Widgets.Border.Style as BS
 import qualified Brick.Widgets.Center as C
 import qualified Brick.Widgets.List as L
->>>>>>> master
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens ((^.))
 import Control.Monad (forever, void)
 import Control.Monad.IO.Class (liftIO)
-<<<<<<< HEAD
-=======
 import Data.List
->>>>>>> master
 import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as S
