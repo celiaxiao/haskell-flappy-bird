@@ -24,6 +24,7 @@ module Snake
     x2,
     x3,
     step2,
+    eatBonus,
   )
 where
 
@@ -52,6 +53,7 @@ data Game = Game
     -- | location of the food
     -- , _foods  :: Stream Coord -- ^ infinite list of random next food locations
     _bonus :: Coord,
+    _nextBonus :: Coord,
     _bonusList :: Stream Coord,
     _isnetwork :: Bool,
     -- | game over flag
@@ -137,6 +139,7 @@ generatePillar = do
     get >>= \g -> modifying x1 (nextX g)
     get >>= \g -> modifying x2 (nextX g)
     get >>= \g -> modifying x3 (nextX g)
+    updateBonus
     nextRandomPillar
 
 nextRandomPillar :: State Game ()
@@ -193,9 +196,7 @@ isdie g@Game {_bird1 = ((V2 xm ym) :<| _), _pl1 = pl1, _pl2 = pl2, _pl3 = pl3, _
   | iscollision g = True
 isdie _ = False
 
--- TODO collision
-
--- if ym == 1 || ym==20 then True else False
+-- collision
 iscollision :: Game -> Bool
 iscollision g@Game {_bird1 = ((V2 xm ym) :<| _), _pl1 = pl1, _pl2 = pl2, _pl3 = pl3, _x1 = x1, _x2 = x2, _x3 = x3}
   | xm == x1 && (ym `elem` [0 .. pl1] ++ [pl1 + gapSize .. height]) = True
@@ -203,16 +204,22 @@ iscollision g@Game {_bird1 = ((V2 xm ym) :<| _), _pl1 = pl1, _pl2 = pl2, _pl3 = 
   | xm == x3 && (ym `elem` [0 .. pl3] ++ [pl3 + gapSize .. height]) = True
 iscollision _ = False
 
--- ScoreModify::
+-- generate the length of next pillar3
+nextB :: Game -> Coord -> Coord
+nextB g@Game {_bonus = bonus, _nextBonus = nb} c = nb
 
 -- | Possibly eat bonus if next head position is bonus
--- eatBonus :: Game -> Game
--- eatBonus
+eatBonus :: Game -> Game
+eatBonus g@Game {_bird1 = bird1, _nextBonus = nb, _score = s} =
+  if isBonus g
+    then g & bonus .~ nb & score .~ (s + 20)
+    else g
+
 -- eatBonus :: MaybeT (State Game) ()
 -- eatBonus = do
---   MaybeT . fmap guard $ (==) <$> (nextHead <$> get) <*> use bonus
+--   MaybeT . fmap guard $ (isBonus <$> get)
 --   MaybeT . fmap Just $ do
---     modifying score (+ 10)
+--     modifying score (+ 20)
 --     nextBonus
 
 -- get >>= \g -> step2(step) g
@@ -220,22 +227,17 @@ iscollision _ = False
 -- $ (==) <$> (nexthead <$> get) <*> use bonus
 --    get >>= \g -> modifying bonus (nextBonus g)
 
+-- TODO: find a way to call this
+
 -- | Set a valid next food coordinate
-nextBonus :: State Game ()
-nextBonus = do
+updateBonus :: State Game ()
+updateBonus = do
   (bo :| bs) <- use bonusList
   bonusList .= bs
-  bonus .= bo
+  nextBonus .= bo
 
--- get
---   >>= ( \case
---           True -> nextBonus
---           False -> bonus .= bo
---       )
---     . isBonus bo
-
-isBonus :: V2 Int -> Game -> Bool
-isBonus (V2 x y) g@Game {_bonus = (V2 xb yb)} = xb == x && yb == y
+isBonus :: Game -> Bool
+isBonus g@Game {_bonus = bonus, _bird1 = bird1} = bonus `elem` bird1
 
 -- | Move snake along in a marquee fashion
 move :: Game -> Game
@@ -272,6 +274,9 @@ nextHead _ = error "Snakes can't be empty!"
 moveHead :: Game -> Coord
 moveHead Game {_dir = d, _bird1 = (a :<| _)} = a & _y %~ (\y -> y + 4)
 
+currHead :: Game -> Coord
+currHead Game {_bird1 = (a :<| _)} = a & _y %~ id
+
 -- | Turn game direction (only turns orthogonally)
 --
 -- Implicitly unpauses yet locks game
@@ -306,7 +311,7 @@ initGame :: IO Game
 initGame = do
   -- contents <- readFile "/home/cse230/Desktop/test.txt"
   (bo :| bs) <-
-    fromList . randomRs (V2 (width `div` 3) (height `div` 4), V2 (width `div` 3) (height * 3 `div` 4)) <$> newStdGen
+    fromList . randomRs (V2 (width `div` 4) (height `div` 4), V2 (width `div` 4) (height * 3 `div` 4)) <$> newStdGen
   -- streaming of random pillar length
   (randp :| randps) <-
     fromList . randomRs (0 + offset, (height `div` 3) + offset) <$> newStdGen
@@ -314,7 +319,7 @@ initGame = do
   a <- drawInt (0 + offset) ((height `div` 3) + offset)
   b <- drawInt (0 + offset) ((height `div` 3) + offset)
   c <- drawInt (0 + offset) ((height `div` 3) + offset)
-  let xm = width `div` 3
+  let xm = width `div` 4
       ym = height `div` 2
       bonusx = 15
       bonusy = 15
@@ -325,7 +330,8 @@ initGame = do
         Game
           { _bird1 = S.singleton (V2 xm ym),
             _bird2 = S.singleton (V2 xm ym),
-            _bonus = bo,
+            _bonus = V2 (height `div` 4) bonusy,
+            _nextBonus = bo,
             _bonusList = bs,
             _score = 0,
             _dir = South,

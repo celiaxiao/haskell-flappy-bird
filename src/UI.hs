@@ -113,7 +113,7 @@ main = do
   forkIO $
     forever $ do
       writeBChan chan Tick
-      threadDelay 400000 -- decides how fast your game moves
+      threadDelay 200000 -- decides how fast your game moves
   g <- initGame
   let builder = V.mkVty V.defaultConfig
   initialVty <- builder
@@ -128,7 +128,7 @@ main = do
 -- Handling events
 
 handleEvent :: Game -> BrickEvent Name Tick -> EventM Name (Next Game)
-handleEvent g (AppEvent Tick) = continue $ step2 (step g)
+handleEvent g (AppEvent Tick) = continue $ eatBonus (step2 (step g))
 handleEvent g (VtyEvent (V.EvKey V.KUp [])) = continue $ turn North g
 handleEvent g (VtyEvent (V.EvKey V.KDown [])) = continue $ turn South g
 handleEvent g (VtyEvent (V.EvKey V.KRight [])) = continue $ turn East g
