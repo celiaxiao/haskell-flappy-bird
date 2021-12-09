@@ -246,6 +246,13 @@ birdtoint ((V2 xm ym) :<| _) = ym
 inttobird:: Int -> Int ->  Bird
 inttobird xm ym = (S.singleton (V2 xm ym))
 
+gamebird1toint:: Game -> Int
+gamebird1toint g@Game{_bird1 =a } = birdtoint a
+
+gamebird2toint::Game -> Int
+gamebird2toint g@Game{_bird2 = a} = birdtoint a
+
+
 -- if ym == 1 || ym==20 then True else False
 -- iscollision :: Game -> Bool
 -- iscollision 
