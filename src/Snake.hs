@@ -371,7 +371,7 @@ drawInt x y = getStdRandom (randomR (x, y))
 -- | Initialize a paused game with random food location
 initGame ::  IO Game
 initGame = do
-  contents <- readFile "/home/cse230/Desktop/test.txt"
+  contents <- readFile "./src/score.txt"
   -- contents <- readFile "/home/cse230/Desktop/test.txt"
   -- (f :| fs) <-
   --   fromList . randomRs (V2 0 0, V2 (width - 1) (height - 1)) <$> newStdGen
