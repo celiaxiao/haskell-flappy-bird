@@ -47,7 +47,7 @@ data Game = Game
   , _paused :: Bool         -- ^ paused flag
   , _score  :: Int          -- ^ score
   , _locked :: Bool   
-  , _historyscore :: [Integer]      -- ^ lock to disallow duplicate turns between time steps
+  , _historyscore :: [Int]      -- ^ lock to disallow duplicate turns between time steps
   -- from C branch
   , _pl1 :: Int
   , _pl2 :: Int
@@ -331,7 +331,7 @@ turnDir n c | c `elem` [North, South] && n `elem` [East, West] = n
             | c `elem` [East, West] && n `elem` [North, South] = n
             | otherwise = c
 
-addscorelist :: Game -> [Integer] -> Game
+addscorelist :: Game -> [Int] -> Game
 addscorelist g@Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = old,
       _randP = rp,
       _randPs = rps,
@@ -371,6 +371,7 @@ drawInt x y = getStdRandom (randomR (x, y))
 -- | Initialize a paused game with random food location
 initGame ::  IO Game
 initGame = do
+  contents <- readFile "/home/cse230/Desktop/test.txt"
   -- contents <- readFile "/home/cse230/Desktop/test.txt"
   -- (f :| fs) <-
   --   fromList . randomRs (V2 0 0, V2 (width - 1) (height - 1)) <$> newStdGen
@@ -385,6 +386,8 @@ initGame = do
       ym = height `div` 2
       bonusx = 15
       bonusy = 15
+      x = init $ split contents
+      result = sort [ read a::Int | a <-x]
       -- x = init $ split contents
       -- y = sort [ read a::Integer | a <-x]
       -- result = take 5 y
@@ -399,7 +402,7 @@ initGame = do
         , _paused = True
         , _locked = False
         ,_isnetwork = False
-        ,_historyscore = [] -- result TODO
+        ,_historyscore = result
         -- from C branch
         , _randP = randp
         , _randPs = randps

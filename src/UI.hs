@@ -56,9 +56,7 @@ app = App { appDraw = drawGame
           , appAttrMap = const theMap
           }
 
-addscorelist :: Snake.Game -> [Integer] -> Snake.Game
-addscorelist g@Snake.Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = old} h = 
-  Snake.Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = h}
+
 
 split :: String -> [String] 
 split [] = [""] 
@@ -143,9 +141,9 @@ drawScore n = withBorderStyle BS.unicodeBold
   $ str $ show n
 
 drawGameOver :: Game ->  Widget Name
-drawGameOver g@Game{_historyscore=history}  =  vBox $ str "   Game Over" :
+drawGameOver g@Game{_historyscore=history,_score=sc}  =  vBox $ str "   Game Over" :
                              str " Your Score is" :
-                             (str <$>  ["\t" <>  (show i) | i <- history ])
+                             (str <$>  ["\t" <>  (show i) | i <- take 5 $ reverse $ sort (sc:history)])
 
 -- "Line " <> 
 -- listDrawElement :: (Show a) => Bool -> a -> Widget ()
