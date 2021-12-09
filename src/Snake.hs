@@ -34,14 +34,13 @@ import Control.Monad (guard)
 import Control.Monad.Extra (orM)
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.State
-import Data.List
+import Data.List (sortBy)
 import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq (..), (<|))
 import qualified Data.Sequence as S
 import Linear.V2 (V2 (..), _x, _y)
 import System.IO
 import System.Random (Random (..), getStdRandom, newStdGen)
-
 
 -- Types
 
@@ -351,6 +350,9 @@ writescore g@Game {_score = s} =
     _ <- appendFile filename (x ++ "\n")
     return g
 
+sortDes :: [Int] -> [Int]
+sortDes =  sortBy (flip compare)
+
 -- | Initialize a paused game with random food location
 initGame :: IO Game
 initGame = do
@@ -371,7 +373,7 @@ initGame = do
       bonusx = 15
       bonusy = 15
       x = init $ split contents     
-      y = sort [read a :: Int | a <- x]
+      y = sortDes [read a :: Int | a <- x]
       result = take 5 y
       g =
         Game
