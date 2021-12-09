@@ -142,8 +142,8 @@ drawScore n = withBorderStyle BS.unicodeBold
 
 drawGameOver :: Game ->  Widget Name
 drawGameOver g@Game{_historyscore=history,_score=sc}  =  vBox $ str "   Game Over" :
-                             str " Your Score is" :
-                             (str <$>  ["\t" <>  (show i) | i <- take 5 $ reverse $ sort (sc:history)])
+                             str "   LeadBoard" :
+                             (str <$>  ["      " <>  (show i) | i <-  take 5 $ reverse $ sort (sc:history) ])
 
 -- "Line " <> 
 -- listDrawElement :: (Show a) => Bool -> a -> Widget ()
