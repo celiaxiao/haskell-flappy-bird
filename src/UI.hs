@@ -56,7 +56,7 @@ app = App { appDraw = drawGame
           , appAttrMap = const theMap
           }
 
-addscorelist :: Snake.Game -> [Integer] -> Snake.Game
+addscorelist :: Snake.Game -> [Int] -> Snake.Game
 addscorelist g@Snake.Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = old} h = 
   Snake.Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = h}
 
@@ -81,7 +81,7 @@ main = do
   chan <- newBChan 10
   forkIO $ forever $ do
     writeBChan chan Tick
-    threadDelay 400000 -- decides how fast your game moves
+    threadDelay 300000 -- decides how fast your game moves
   g <- initGame 
   let builder = V.mkVty V.defaultConfig
   initialVty <- builder
@@ -106,6 +106,7 @@ handleEvent g (VtyEvent (V.EvKey (V.KChar 'l') [])) = continue $ turn East g
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'h') [])) = continue $ turn West g
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'r') [])) = liftIO (initGame) >>= continue
 handleEvent g (VtyEvent (V.EvKey (V.KChar 'q') [])) = halt g
+handleEvent g (VtyEvent (V.EvKey (V.KChar 's') [])) = liftIO (writescore g) >>= continue
 handleEvent g (VtyEvent (V.EvKey V.KEsc []))        = halt g
 handleEvent g _                                     = continue g
 
@@ -143,8 +144,10 @@ drawScore n = withBorderStyle BS.unicodeBold
   $ str $ show n
 
 drawGameOver :: Game ->  Widget Name
-drawGameOver g@Game{_historyscore=history}  =  vBox $ str "   Game Over" :
-                             str " Your Score is" :
+drawGameOver g@Game{_historyscore=history, _score=s}  =  vBox $ str "   Game Over" :
+                             str (" Your Score is: "++(show s)) :
+                             str "To save the score in leaderboard, press s" :
+                             str "Leaderboard:": 
                              (str <$>  ["\t" <>  (show i) | i <- history ])
 
 -- "Line " <> 
@@ -155,7 +158,6 @@ drawGameOver g@Game{_historyscore=history}  =  vBox $ str "   Game Over" :
 --                    else str s
 --     in C.hCenter $ str "Item " <+> (selStr $ show a)
 -- $ str $ show n
-
 
 drawGrid :: Game -> Widget Name
 drawGrid g = withBorderStyle BS.unicodeBold

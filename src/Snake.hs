@@ -33,8 +33,7 @@ import Data.Sequence (Seq(..), (<|))
 import qualified Data.Sequence as S
 import Linear.V2 (V2(..), _x, _y)
 import System.Random (Random (..), getStdRandom, newStdGen)
-import System.Directory (getCurrentDirectory, createDirectory, doesFileExist)
-import Control.Monad.IO.Class (liftIO)
+
 
 -- Types
 
@@ -49,7 +48,7 @@ data Game = Game
   , _paused :: Bool         -- ^ paused flag
   , _score  :: Int          -- ^ score
   , _locked :: Bool   
-  , _historyscore :: [Integer]      -- ^ lock to disallow duplicate turns between time steps
+  , _historyscore :: [Int]      -- ^ lock to disallow duplicate turns between time steps
   -- from C branch
   , _pl1 :: Int
   , _pl2 :: Int
@@ -194,18 +193,25 @@ step s = flip execState s . runMaybeT $ do
 
 -- writescore :: Game -> IO ()
 -- writescore :: Game -> State Game ()
-writescore g@Game {_score = s} = 
-  do
-    let x = show s
-    appendFile filename (x ++ "\n")
-    return ()
+-- writescore g@Game {_score = s} = 
+--   do
+--     let x = show s
+--     _ <- appendFile filename (x ++ "\n")
+--     return g
 
 -- die :: MaybeT (StateT Game m) ()
-die =
-  do
-    MaybeT . fmap guard $ (==) <$> (isdie <$> get) <*> use trueFlag
-    MaybeT . fmap Just $ do
-      writescore g
+-- die g = case (isdie g) of
+--     False -> g
+--     True -> g -- do
+        -- return =<< liftIO (writescore g)
+      -- True -> do
+      --   MaybeT . fmap Just $ do
+      --     _ <- writescore g
+      --     return g
+    -- MaybeT . fmap guard $ (==) <$> (isdie <$> get) <*> use trueFlag
+    -- MaybeT . fmap Just $ do
+      -- _ <- writescore g
+      -- return g
 
 
 generatePillar :: MaybeT (State Game) ()
@@ -330,7 +336,7 @@ turnDir n c | c `elem` [North, South] && n `elem` [East, West] = n
             | c `elem` [East, West] && n `elem` [North, South] = n
             | otherwise = c
 
-addscorelist :: Game -> [Integer] -> Game
+addscorelist :: Game -> [Int] -> Game
 addscorelist g@Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = old,
       _randP = rp,
       _randPs = rps,
@@ -369,6 +375,14 @@ addscorelist g@Game{ _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=
 drawInt :: Int -> Int -> IO Int
 drawInt x y = getStdRandom (randomR (x, y))
 
+
+writescore :: Game -> IO Game
+writescore g@Game {_score = s} =
+  do
+    let x = show s
+    _ <- appendFile filename (x ++ "\n")
+    return g
+
 -- | Initialize a paused game with random food location
 initGame ::  IO Game
 initGame = do
@@ -387,7 +401,7 @@ initGame = do
       bonusx = 15
       bonusy = 15
       x = init $ split contents
-      y = sort [ read a::Integer | a <-x]
+      y = sort [ read a::Int | a <-x]
       result = take 5 y
       g  = Game
         { _bird1  = (S.singleton (V2 xm ym)),
