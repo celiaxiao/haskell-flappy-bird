@@ -108,7 +108,7 @@ update s = case (isNetwork s) of
     case wait of
       0 -> return s
       1 -> do 
-        _ <- net_insert "bird_self" (bird2int $ bird1 s)
+        net_insert "bird_self" (bird2int $ bird1 s)
         case isServer s of
           1 -> do
             bird2 <- net_lookup "bird_comp"
@@ -134,7 +134,10 @@ update s = case (isNetwork s) of
                     1 -> 4
                     0 -> 1
                 })
-              _ -> return s
+              4 -> do
+                return (s {
+                  comp_win = comp_win
+                })
           0 -> do
             bird2 <- net_lookup "bird_comp"
             pl1 <- net_lookup "pl1"
@@ -145,20 +148,25 @@ update s = case (isNetwork s) of
             x3 <- net_lookup "x3"
             net_insert "self_win" (self_win s)
             comp_win <- net_lookup "comp_win"
-            -- print x1
-            return (s {
-              bird2 = int2bird bird2,
-              pl1 = pl1,
-              pl2 = pl2,
-              pl3 = pl3,
-              x1 = x1,
-              x2 = x2,
-              x3 = x3,
-              comp_win = comp_win,
-              gameState = case comp_win of
-                1 -> 4
-                0 -> 1
-            })
+            case (gameState s) of
+              1 -> do
+                return (s {
+                  bird2 = int2bird bird2,
+                  pl1 = pl1,
+                  pl2 = pl2,
+                  pl3 = pl3,
+                  x1 = x1,
+                  x2 = x2,
+                  x3 = x3,
+                  comp_win = comp_win,
+                  gameState = case comp_win of
+                    1 -> 4
+                    0 -> 1
+                })
+              4 -> do
+                return (s {
+                  comp_win = comp_win
+                })
 
 control0 d ev = case ev of
   V.EvKey V.KEsc [] -> Brick.halt d
