@@ -91,9 +91,9 @@ drawGameOver PS {historyscore = history, score = s, self_win = sw, comp_win = cw
       winmsg = case sw of
         1 -> case cw of
           1 -> str "1 1"
-          0 -> str "You lose!"
+          0 -> str "You win!"
         0 -> case cw of
-          1 -> str "You win!"
+          1 -> str "You lose!"
           0 -> str "0 0"
 
 -- (str <$> ["\t" <> (show i) | i <- history])
