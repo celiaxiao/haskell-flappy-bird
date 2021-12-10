@@ -57,7 +57,7 @@ pListLen = 100
 bListLen = 30
 
 filename :: String
-filename = "test.txt"
+filename = "leaderboard.txt"
 
 -- gameOverAttr, snakeAttr, birdAttr, emptyAttr, bonusAttr :: AttrName
 gameOverAttr = attrName "gameOver"
@@ -150,8 +150,6 @@ randomList n u l = do
 sortDes :: [Int] -> [Int]
 sortDes = Data.List.sortBy (flip compare)
 
--- >>> readFile "test.txt"
--- "123"
 
 --
 initGame = do
