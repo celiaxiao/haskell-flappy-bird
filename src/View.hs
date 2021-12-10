@@ -85,7 +85,7 @@ drawGameOver PS {historyscore = history, score = s, self_win = sw, comp_win = cw
     str "   Game Over" :
     str (" Your Score is: " ++ (show s)) :
     str "To save the score in leaderboard, press s" :
-    str "   LeadBoard:" :
+    str "   LeaderBoard:" :
     (str <$> ["      " <> show i | i <- take 5 $ reverse $ sort (s : history)])
     where
       winmsg = case sw of
