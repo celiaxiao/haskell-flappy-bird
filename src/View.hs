@@ -12,10 +12,6 @@ import Linear.V2 (V2 (..))
 import Model
 import Text.Printf (printf)
 
--------------------------------------------------------------------------------
--- view :: PlayState -> [Widget w]
--------------------------------------------------------------------------------
--- 4 dead
 
 data Cell = Snake | Bird | Bonus | Empty | BirdTwo
 
@@ -24,9 +20,8 @@ view s = case gameState s of
   1 -> view1 s
   2 -> view2 s
   3 -> view3 s
-  _ -> view4 s
+  4 -> view4 s
 
--- view0 :: PlayState -> [Widget ()]
 view0 s = [ui]
   where
     ui = D.renderDialog (choices s) $ C.hCenter $ padAll 1 $ str "   "
@@ -49,7 +44,6 @@ view3 s = [ui]
           <=> str " "
           <=> str (st2msg s)
 
--- view4 :: p -> PlayState -> Widget n
 view4 s = [C.center $ padRight (Pad 2) (drawGameOver s)]
 
 view1 g@PS {isNetwork = s} = case s of
@@ -63,8 +57,6 @@ drawStats g@PS {gameState = d} = case d of
         [ drawScore (score g),
           padTop (Pad 2) emptyWidget
         ]
-
--- 4 -> drawGameOver g
 
 drawScore n =
   withBorderStyle BS.unicodeBold $
@@ -85,13 +77,11 @@ drawGameOver PS {historyscore = history, score = s, self_win = sw, comp_win = cw
     where
       winmsg = case sw of
         1 -> case cw of
-          1 -> str "1 1"
+          1 -> str ""
           0 -> str "You lose!"
         0 -> case cw of
           1 -> str "You win!"
-          0 -> str "0 0"
-
--- (str <$> ["\t" <> (show i) | i <- history])
+          0 -> str ""
 
 drawGrid g =
   withBorderStyle BS.unicodeBold $

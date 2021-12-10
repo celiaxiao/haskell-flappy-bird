@@ -19,11 +19,8 @@ import View
 
 -------------------------------------------------------------------------------
 
--- makeLenses ''St
-
 main :: IO ()
 main = do
-  rounds <- fromMaybe defaultRounds <$> getRounds
   chan <- newBChan 10
   forkIO $
     forever $ do
@@ -32,7 +29,7 @@ main = do
   let buildVty = V.mkVty V.defaultConfig
   initialVty <- buildVty
   g <- initGame
-  res <- customMain initialVty buildVty (Just chan) app g --(Model.init rounds)
+  res <- customMain initialVty buildVty (Just chan) app g
   return ()
 
 app :: App PlayState Tick String
@@ -44,13 +41,3 @@ app =
       appStartEvent = return,
       appAttrMap = const theMap
     }
-
-getRounds :: IO (Maybe Int)
-getRounds = do
-  args <- getArgs
-  case args of
-    (str : _) -> return (readMaybe str)
-    _ -> return Nothing
-
-defaultRounds :: Int
-defaultRounds = 3
