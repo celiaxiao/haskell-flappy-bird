@@ -88,8 +88,6 @@ data PlayState = PS
   , choices2 :: D.Dialog Int
   , st :: St
   , st2msg :: String
-  , ip :: String
-  , port :: String
   , birdY :: Int
   , historyscore :: [Int]
   , bonus :: Coord

@@ -44,6 +44,8 @@ import Control.Monad.Trans.State
 import System.IO
 import Data.Maybe (fromMaybe)
 
+import qualified Data.Sequence as S
+
 -------------------------------------------------------------------------------
 
 funcs :: IORef (Map.Map String Int)
@@ -110,9 +112,9 @@ update s = case (isNetwork s) of
   0 -> do
     return s
   1 -> do
-    bird <- net_lookup "bird_y_self"
-    return s {birdY = bird}
-
+    _ <- net_insert "bird_self" (bird2int $ bird1 s)
+    bird2 <- net_lookup "bird_comp"
+    return s {bird2 = int2bird bird2}
 
 control0 d ev = case ev of
   V.EvKey V.KEsc [] -> Brick.halt d
@@ -125,8 +127,8 @@ control0 d ev = case ev of
 control0 d _ = Brick.continue d
 
 getState s d = case (D.dialogSelection d) of
-  Just 0 -> s {gameState = 1}
-  Just 1 -> s {gameState = 2}
+  Just 0 -> s {gameState = 1, isNetwork = 0}
+  Just 1 -> s {gameState = 2, isNetwork = 1}
   Nothing -> s {gameState = 0}
 
 
@@ -308,38 +310,7 @@ iscollision g@PS {bird1 = ((V2 xm ym) :<| _), pl1 = pl1, pl2 = pl2, pl3 = pl3, x
   | xm == x3 && (ym `elem` [0 .. pl3] ++ [pl3 + gapSize .. height]) = True
 iscollision _ = False
 
--- ScoreModify::
 
--- | Possibly eat bonus if next head position is bonus
--- eatBonus :: Game -> Game
--- eatBonus
--- eatBonus :: MaybeT (State Game) ()
--- eatBonus = do
---   MaybeT . fmap guard $ (==) <$> (nextHead <$> get) <*> use bonus
---   MaybeT . fmap Just $ do
---     modifying score (+ 10)
---     nextBonus
-
--- get >>= \g -> step2(step) g
-
--- $ (==) <$> (nexthead <$> get) <*> use bonus
---    get >>= \g -> modifying bonus (nextBonus g)
-
--- -- | Set a valid next food coordinate
--- nextBonus = do
---   (bo :| bs) <- use bonusList
---   bonusList .= bs
---   bonus .= bo
-
--- get
---   >>= ( \case
---           True -> nextBonus
---           False -> bonus .= bo
---       )
---     . isBonus bo
-
--- isBonus :: V2 Int -> Game -> Bool
--- isBonus (V2 x y) g@PS {bonus = (V2 xb yb)} = xb == x && yb == y
 
 -- | Move snake along in a marquee fashion
 -- move :: Game -> Game
@@ -406,15 +377,14 @@ turnDir n c
   | c `elem` [East, West] && n `elem` [North, South] = n
   | otherwise = c
 
--- addscorelist :: Game -> [Integer] -> Game
--- addscorelist
---   g@PS
---     { historyscore = old
---     }
---   h = g & historyscore .~ h
-
 -- drawInt :: Int -> Int -> IO Int
 drawInt x y = getStdRandom (randomR (x, y))
+
+bird2int :: Seq Coord -> Int
+bird2int ((V2 xm ym) :<| _) = ym
+
+int2bird :: Int -> Seq Coord
+int2bird ym = (S.singleton (V2 birdXPos ym))
 
 runServer ip port = do 
   addrinfos <- getAddrInfo Nothing (Just ip) (Just port)
@@ -444,10 +414,17 @@ runServer ip port = do
           return ()
         _ -> do
           let n = length m
-          net_insert (m !! 0) (read (m !! 1))
-          x <- net_lookup "test"
-          print x
-          let msg = C.pack "test"
+          net_insert "bird_comp" (read (m !! 0))
+          x <- net_lookup "bird_self"
+          pl1 <- net_lookup "pl1"
+          pl2 <- net_lookup "pl2"
+          pl3 <- net_lookup "pl3"
+          x1 <- net_lookup "x1"
+          x2 <- net_lookup "x2"
+          x3 <- net_lookup "x3"
+          score <- net_lookup "score"
+          -- print x
+          let msg = C.pack (show x ++ "," ++ show pl1 ++ "," ++ show pl2 ++ "," ++ show pl3 ++ "," ++ show x1 ++ "," ++ show x2 ++ "," ++ show x3 ++ "," ++ show score)
           unless (BS.null msg) $ do
           -- print ("TCP server received: " ++ C.unpack msg)
           -- print "TCP server is now sending a message to the client"
@@ -463,8 +440,23 @@ runClient ip port = do
   rrLoop sock
   where
     rrLoop sock = forever $ do
-      sendAll sock $ C.pack "test,5,bird,4"
-      -- sendAll sock $ C.pack "exit"
       msg <- recv sock 1024
-      print ("TCP client received: " ++ C.unpack msg)
-      threadDelay 1000000
+      case (C.unpack msg) of
+        "exit" -> do
+          print "TCP server socket is closing now."
+          close sock
+          -- close sock
+          return ()
+        _ -> do
+          let m = splitOn "," (C.unpack msg)
+          let n = length m
+          x <- net_lookup "bird_self"
+          score <- net_lookup "score"
+          net_insert "bird_comp" x
+          let send_msg = show x ++ "," ++ show score
+          sendAll sock $ C.pack send_msg
+      -- sendAll sock $ C.pack "exit"
+      
+      --print ("TCP client received: " ++ C.unpack msg)
+          threadDelay 1000000
+          rrLoop sock
