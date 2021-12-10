@@ -122,7 +122,7 @@ drawGridSingle g =
       | isBonus g c = Bonus
       | otherwise = Empty
 
-isPillar :: PlayState -> V2 Int -> Bool -- TODO: same logic as collide
+isPillar :: PlayState -> V2 Int -> Bool
 isPillar g (V2 x y)
   | x == (x1 g) && (y `elem` [0 .. (pl1 g)] ++ [(pl1 g) + gapSize .. height]) = True
   | x == (x2 g) && (y `elem` [0 .. (pl2 g)] ++ [(pl2 g) + gapSize .. height]) = True

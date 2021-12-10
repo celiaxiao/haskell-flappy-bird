@@ -1,7 +1,6 @@
 module Control where
 
 import Brick hiding (Result)
--- import Model.Player
 
 import qualified Brick.Focus as F
 import qualified Brick.Types as T
