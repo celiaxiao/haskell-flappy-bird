@@ -12,7 +12,6 @@ import Linear.V2 (V2 (..))
 import Model
 import Text.Printf (printf)
 
-
 data Cell = Snake | Bird | Bonus | Empty | BirdTwo
 
 view s = case gameState s of
@@ -25,11 +24,15 @@ view s = case gameState s of
 view0 s = [ui]
   where
     ui = D.renderDialog (choices s) $ C.hCenter $ padAll 1 $ str "   "
+    -- choices: single/double
 
+-- start/ join server
 view2 s = [ui]
   where
     ui = D.renderDialog (choices2 s) $ C.hCenter $ padAll 1 $ str "   "
+    -- choices2: start/join server
 
+-- join server
 view3 s = [ui]
   where
     t = (st s)
@@ -65,14 +68,13 @@ drawScore n =
         padAll 1 $
           str $ show n
 
--- drawGameOver :: PlayState -> Widget PlayState
 drawGameOver PS {historyscore = history, score = s, self_win = sw, comp_win = cw} =
   vBox $
     (winmsg) :
     str "   Game Over" :
     str (" Your Score is: " ++ (show s)) :
     str "To save the score in leaderboard, press s" :
-    str "   LeadBoard:" :
+    str "   LeaderBoard:" :
     (str <$> ["      " <> show i | i <- take 5 $ reverse $ sort (s : history)])
     where
       winmsg = case sw of

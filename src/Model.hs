@@ -91,8 +91,8 @@ data PlayState = PS
   { gameState :: Int,
     isNetwork :: Int,
     isServer :: Int,
-    choices :: D.Dialog Int,
-    choices2 :: D.Dialog Int,
+    choices :: D.Dialog Int, -- single player
+    choices2 :: D.Dialog Int, -- multi player 
     st :: St,
     st2msg :: String,
     birdY :: Int,

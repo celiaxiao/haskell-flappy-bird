@@ -1,4 +1,4 @@
-name:                brick-tac-toe
+name:                haskell-flappy-bird
 version:             0.1.0.0
 license:             MIT
 license-file:        LICENSE
@@ -9,7 +9,7 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
-executable brick-tac-toe
+executable haskell-flappy-bird
   main-is:             Main.hs
   build-depends:       base >=4.9, 
                        random >=1.1 && <1.2,

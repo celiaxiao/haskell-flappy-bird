@@ -37,6 +37,7 @@ import Network.Socket.ByteString (recv, sendAll)
 import System.IO
 import System.IO.Unsafe
 import System.Random (Random (..), getStdRandom, newStdGen)
+import Test.QuickCheck
 
 -------------------------------------------------------------------------------
 
@@ -168,6 +169,7 @@ update s = case (isNetwork s) of
                   comp_win = comp_win
                 })
 
+-- game start display control
 control0 d ev = case ev of
   V.EvKey V.KEsc [] -> Brick.halt d
   V.EvKey V.KEnter [] -> do
@@ -182,6 +184,7 @@ getState s d = case (D.dialogSelection d) of
   Just 0 -> s {gameState = 1, isNetwork = 0}
   Just 1 -> s {gameState = 2, isNetwork = 1}
   Nothing -> s {gameState = 0}
+
 
 control2 d ev@(T.VtyEvent evt) = case ev of
   AppEvent Tick -> Brick.continue =<< liftIO (update d)
@@ -411,10 +414,7 @@ turn d g@PS {bird1 = (s :|> _)} =
     { bird1 = (moveHead g <| s)
     }
 
-turnDir n c
-  | c `elem` [North, South] && n `elem` [East, West] = n
-  | c `elem` [East, West] && n `elem` [North, South] = n
-  | otherwise = c
+
 
 -- drawInt :: Int -> Int -> IO Int
 drawInt x y = getStdRandom (randomR (x, y))
@@ -535,3 +535,50 @@ runClient ip port = do
           threadDelay 100000
 
           rrLoop sock
+
+
+
+--------------
+prop_sort_des :: [Int] -> Bool
+prop_sort_des xs = reverse (sort xs) == sortDes xs
+  where 
+    types = xs :: [Int]
+
+-- >>> quickCheck testSortDes
+-- +++ OK, passed 100 tests.
+--
+
+
+prop_next_p_zero :: Int -> Int -> Int -> Property
+prop_next_p_zero x rp p =
+  (x == 0) ==> (nextP x rp p == rp)
+
+prop_next_p_nonzero :: Int -> Int -> Int -> Property
+prop_next_p_nonzero x rp p =
+  (x /= 0) ==> (nextP x rp p == p)
+
+
+-- >>> quickCheck testNextPNonZero
+-- +++ OK, passed 100 tests; 13 discarded.
+
+-- >>> quickCheck testNextPZero
+-- *** Gave up! Passed only 26 tests; 1000 discarded tests.
+--
+
+
+
+prop_collide_x :: Int -> Int -> Int -> Int -> Property
+prop_collide_x bx by px py =
+  (bx /= px) ==> (collide bx by px py == False)
+
+prop_collide_y :: Int -> Int -> Int -> Int -> Property
+prop_collide_y bx by px py =
+  (by `elem` [py+1 .. py+gapSize-1]) ==> (collide bx by px py == False)
+
+-- >>> quickCheck testCollideX
+-- +++ OK, passed 100 tests; 12 discarded.
+--
+
+-- >>> quickCheck testCollideY
+-- +++ OK, passed 100 tests; 659 discarded.
+--
