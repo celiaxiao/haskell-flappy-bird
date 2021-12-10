@@ -253,8 +253,47 @@ gamebird2toint::Game -> Int
 gamebird2toint g@Game{_bird2 = a} = birdtoint a
 
 inttogame :: Game -> Int -> Int -> Game
-inttogame g@Game { _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = h} xm ym =
-  Game { _bird1=a,_bird2=(S.singleton (V2 xm ym)),_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = h}
+inttogame g@Game { _dead = l,
+                       _score = s,
+                       -- the rest
+                       _bird1 = a,
+                       _bird2 = b,
+                       _isnetwork = net,
+                       _dir = d,
+                       _paused = p,
+                       _locked = m,
+                       _food = f,
+                       _randP = rp,
+                       _randPs = rps,
+                       _pl1 = pl1,
+                       _pl2 = pl2,
+                       _pl3 = pl3,
+                       _x1 = x1,
+                       _x2 = x2,
+                       _x3 = x3,
+                       _wall = w,
+                       _historyscore = h
+                     } xm ym = Game{ _dead = l,
+                                     _score = s,
+                                     -- the rest
+                                     _bird1 = a,
+                                     _bird2 = S.singleton (V2 xm ym),
+                                     _isnetwork = net,
+                                     _dir = d,
+                                     _paused = p,
+                                     _locked = m,
+                                     _food = f,
+                                     _randP = rp,
+                                     _randPs = rps,
+                                     _pl1 = pl1,
+                                     _pl2 = pl2,
+                                     _pl3 = pl3,
+                                     _x1 = x1,
+                                     _x2 = x2,
+                                     _x3 = x3,
+                                     _wall = w,
+                                     _historyscore = h
+                                   }
 
 
 
