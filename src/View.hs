@@ -32,7 +32,7 @@ view s = case gameState s of
   1 -> view1 s
   2 -> view2 s
   3 -> view3 s
-  4 -> view4 s
+  _ -> view4 s
 
 -- view0 :: PlayState -> [Widget ()]
 view0 s = [ui]
