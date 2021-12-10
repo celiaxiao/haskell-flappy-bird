@@ -51,13 +51,7 @@ net_lookup str = do
   fs <- readIORef funcs
   case Map.lookup str fs of
     Just x -> do
-      -- print str
-      case str == "gameState" of
-        True -> do
-          -- print x
-          return x
-        False -> do
-          return x
+      return x
     Nothing -> return 0
 
 -- control :: PlayState -> BrickEvent n Tick -> EventM n (Next PlayState)
@@ -89,12 +83,12 @@ control' 1 g ev = case ev of
 control' 0 s (VtyEvent ev) = control0 s ev
 control' 2 s ev = control2 s ev
 control' 3 s ev = control3 s ev
-control' 4 s (VtyEvent ev) = control4 s ev
+control' 4 s ev = control4 s ev
 control' _ s _ = Brick.continue s
 
 -- | Step forward in time
 step2
-  g@PS {score = s} = if isdie g then g {gameState = 4} else g {gameState = 1, score = s + 5}
+  g@PS {score = s} = if isdie g then g {gameState = 4, self_win = 1} else g {gameState = 1, score = s + 5}
 
 -- if isdie g
 --   then g & gameState .~ 4 & score .~ s
@@ -107,7 +101,7 @@ step s = flip execState s . runMaybeT $ do
 
 update s = case (isNetwork s) of
   0 -> do
-    print "not network"
+    -- print "not network"
     return s
   1 -> do
     wait <- net_lookup "wait"
@@ -119,17 +113,28 @@ update s = case (isNetwork s) of
           1 -> do
             bird2 <- net_lookup "bird_comp"
             gs <- net_lookup "gameState"
-            -- print gs
-            net_insert "pl1" (pl1 s)
-            net_insert "pl2" (pl2 s)
-            net_insert "pl3" (pl3 s)
-            net_insert "x1" (x1 s)
-            net_insert "x2" (x2 s)
-            net_insert "x3" (x3 s)
-            return (s {
-              bird2 = int2bird bird2
-              , gameState = gs
-            })
+            net_insert "self_win" (self_win s)
+            comp_win <- net_lookup "comp_win"
+            case (gameState s) of
+              3 -> do
+                return ( s{
+                  gameState = gs
+                })
+              1 -> do 
+                net_insert "pl1" (pl1 s)
+                net_insert "pl2" (pl2 s)
+                net_insert "pl3" (pl3 s)
+                net_insert "x1" (x1 s)
+                net_insert "x2" (x2 s)
+                net_insert "x3" (x3 s)
+                return (s {
+                  bird2 = int2bird bird2,
+                  comp_win = comp_win,
+                  gameState = case comp_win of
+                    1 -> 4
+                    0 -> 1
+                })
+              _ -> return s
           0 -> do
             bird2 <- net_lookup "bird_comp"
             pl1 <- net_lookup "pl1"
@@ -138,7 +143,9 @@ update s = case (isNetwork s) of
             x1 <- net_lookup "x1"
             x2 <- net_lookup "x2"
             x3 <- net_lookup "x3"
-            print x1
+            net_insert "self_win" (self_win s)
+            comp_win <- net_lookup "comp_win"
+            -- print x1
             return (s {
               bird2 = int2bird bird2,
               pl1 = pl1,
@@ -146,7 +153,11 @@ update s = case (isNetwork s) of
               pl3 = pl3,
               x1 = x1,
               x2 = x2,
-              x3 = x3
+              x3 = x3,
+              comp_win = comp_win,
+              gameState = case comp_win of
+                1 -> 4
+                0 -> 1
             })
 
 -- game start display control
@@ -195,6 +206,8 @@ control3 s (T.VtyEvent ev) =
           _ <- liftIO $ net_insert "bird_self" 0
           _ <- liftIO $ net_insert "bird_comp" 0
           _ <- liftIO $ net_insert "wait" 1
+          _ <- liftIO $ net_insert "self_win" 0
+          _ <- liftIO $ net_insert "comp_win" 0
           _ <-
             liftIO $
               forkIO $
@@ -213,6 +226,8 @@ control3 s (T.VtyEvent ev) =
           _ <- liftIO $ net_insert "pl2" (pl2 s)
           _ <- liftIO $ net_insert "pl3" (pl3 s)
           _ <- liftIO $ net_insert "wait" 1
+          _ <- liftIO $ net_insert "self_win" 0
+          _ <- liftIO $ net_insert "comp_win" 0
           _ <-
             liftIO $
               forkIO $
@@ -232,13 +247,14 @@ control3 s (AppEvent Tick) = Brick.continue =<< liftIO (update s)
 control3 s _ = Brick.continue s
 
 
-control4 s ev = case ev of
-
+control4 s evt@(VtyEvent ev) = case ev of
   V.EvKey V.KEsc [] -> Brick.halt s
   (V.EvKey (V.KChar 'r') []) -> Brick.continue =<< liftIO initGame
   (V.EvKey (V.KChar 's') []) -> Brick.continue =<< liftIO (writescore s)
   (V.EvKey (V.KChar 'q') []) -> Brick.halt s
   _ -> Brick.continue s
+control4 s (AppEvent Tick) = Brick.continue =<< liftIO (update s)
+control4 s _ = Brick.continue s
 
 getEdit1 edt st = st {_edit1 = edt}
 
@@ -254,7 +270,8 @@ shouldUpdate = do
     let (s :|> _) = bird1 g
     Control.Monad.Trans.State.put (g{
       bird1 = (nextHead g <| s),
-      gameState = if isdie g then 4 else 1
+      gameState = if isdie g then 4 else 1,
+      self_win = if isdie g then 1 else 0
     })
 
 isClient :: PlayState -> Bool
@@ -364,7 +381,8 @@ move g@PS {bird1 = (s :|> _), x1 = xx1, x2 = xx2, x3 = xx3} =
       x1 = (xx1 - 1) `mod` width,
       x2 = (xx2 - 1) `mod` width,
       x3 = (xx3 - 1) `mod` width,
-      gameState = if isdie g then 4 else 1
+      gameState = if isdie g then 4 else 1,
+      self_win = if isdie g then 1 else 0
     }
 move _ = error "Snakes can't be empty!"
 
@@ -452,6 +470,7 @@ runServer ip port = do
           -- print "TCP server socket is closing now."
           let n = length m
           net_insert "bird_comp" (read (m !! 0))
+          net_insert "comp_win" (read (m !! 1))
           x <- net_lookup "bird_self"
           pl1 <- net_lookup "pl1"
           pl2 <- net_lookup "pl2"
@@ -459,8 +478,9 @@ runServer ip port = do
           x1 <- net_lookup "x1"
           x2 <- net_lookup "x2"
           x3 <- net_lookup "x3"
-          score <- net_lookup "score"
-          let msg = C.pack (show x ++ "," ++ show pl1 ++ "," ++ show pl2 ++ "," ++ show pl3 ++ "," ++ show x1 ++ "," ++ show x2 ++ "," ++ show x3 ++ "," ++ show score)
+          self_win <- net_lookup "self_win"
+          
+          let msg = C.pack (show x ++ "," ++ show pl1 ++ "," ++ show pl2 ++ "," ++ show pl3 ++ "," ++ show x1 ++ "," ++ show x2 ++ "," ++ show x3 ++ "," ++ show self_win)
           unless (BS.null msg) $ do
             -- print ("TCP server received: " ++ C.unpack msg)
             -- print "TCP server is now sending a message to the client"
@@ -478,9 +498,10 @@ runClient ip port = do
   where
     rrLoop sock = do
       x <- net_lookup "bird_self"
-      score <- net_lookup "score"
+      -- score <- net_lookup "score"
       net_insert "bird_comp" x
-      let send_msg = show x ++ "," ++ show score
+      self_win <- net_lookup "self_win"
+      let send_msg = show x ++ "," ++ show self_win
       sendAll sock $ C.pack send_msg
 
       msg <- recv sock 1024
@@ -502,6 +523,7 @@ runClient ip port = do
           net_insert "x1" (read (m !! 4))
           net_insert "x2" (read (m !! 5))
           net_insert "x3" (read (m !! 6))
+          net_insert "comp_win" (read (m !! 7))
 
           -- print ("TCP client received: " ++ C.unpack msg)
           threadDelay 100000
