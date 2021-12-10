@@ -4,7 +4,6 @@ import Brick hiding (Result)
 -- import Model.Player
 
 import qualified Brick.Focus as F
-import qualified Brick.Main as M
 import qualified Brick.Types as T
 import qualified Brick.Widgets.Dialog as D
 import qualified Brick.Widgets.Edit as E
@@ -12,8 +11,6 @@ import Control.Applicative ((<|>))
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens hiding ((:<), (:>), (<|), (|>))
 import Control.Monad
-import Control.Monad (guard, unless)
-import Control.Monad.Extra (orM)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.State
@@ -23,12 +20,11 @@ import Data.IORef
 import Data.List
 import Data.List.Split
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq (..), (<|))
 import qualified Data.Sequence as S
 import qualified Data.String.Utils as U
 import qualified Graphics.Vty as V
-import Linear.V2 (V2 (..), _x, _y)
+import Linear.V2 (V2 (..), _y)
 import Model
 import Network.Socket hiding (recv)
 import Network.Socket.ByteString (recv, sendAll)
@@ -461,10 +457,9 @@ prop_sort_des xs = reverse (sort xs) == sortDes xs
   where 
     types = xs :: [Int]
 
--- >>> quickCheck testSortDes
+-- >>> quickCheck prop_sort_des
 -- +++ OK, passed 100 tests.
 --
-
 
 prop_next_p_zero :: Int -> Int -> Int -> Property
 prop_next_p_zero x rp p =
@@ -475,11 +470,12 @@ prop_next_p_nonzero x rp p =
   (x /= 0) ==> (nextP x rp p == p)
 
 
--- >>> quickCheck testNextPNonZero
--- +++ OK, passed 100 tests; 13 discarded.
+-- >>> quickCheck prop_next_p_zero
+-- *** Gave up! Passed only 37 tests; 1000 discarded tests.
+--
 
--- >>> quickCheck testNextPZero
--- *** Gave up! Passed only 26 tests; 1000 discarded tests.
+-- >>> quickCheck prop_next_p_nonzero
+-- +++ OK, passed 100 tests; 15 discarded.
 --
 
 
@@ -492,10 +488,10 @@ prop_collide_y :: Int -> Int -> Int -> Int -> Property
 prop_collide_y bx by px py =
   (by `elem` [py+1 .. py+gapSize-1]) ==> (collide bx by px py == False)
 
--- >>> quickCheck testCollideX
--- +++ OK, passed 100 tests; 12 discarded.
+-- >>> quickCheck prop_collide_x
+-- +++ OK, passed 100 tests; 10 discarded.
 --
 
--- >>> quickCheck testCollideY
--- +++ OK, passed 100 tests; 659 discarded.
+-- >>> quickCheck prop_collide_y
+-- +++ OK, passed 100 tests; 928 discarded.
 --

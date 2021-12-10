@@ -49,7 +49,7 @@ pListLen = 100
 bListLen = 30
 
 filename :: String
-filename = "test.txt"
+filename = "leaderboard.txt"
 
 gameOverAttr = attrName "gameOver"
 snakeAttr = attrName "snakeAttr"
