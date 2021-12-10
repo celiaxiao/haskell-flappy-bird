@@ -145,16 +145,7 @@ randomList n u l = do
   rs <- randomList (n -1) u l
   return (r : rs)
 
--- initGame :: IO Game
 initGame = do
-  -- contents <- readFile "/home/cse230/Desktop/test.txt"
-  -- (bo :| bs) <-
-  --   fromList . randomRs (V2 birdXPos (height `div` 4), V2 birdXPos (height * 3 `div` 4)) <$> newStdGen
-  -- -- streaming of random pillar length
-  -- (randp :| randps) <-
-  --   fromList . randomRs (0 + offset, (height `div` 3) + offset) <$> newStdGen
-
-  -- hard code initial pillar length
   a <- drawInt (0 + offset) ((height `div` 3) + offset)
   b <- drawInt (0 + offset) ((height `div` 3) + offset)
   c <- drawInt (0 + offset) ((height `div` 3) + offset)
@@ -163,9 +154,6 @@ initGame = do
   bonusPosList <- randomList bListLen (height `div` 4) (height * 3 `div` 4)
   let xm = birdXPos
       ym = height `div` 2
-      -- x = init $ split contents
-      -- y = sort [ read a::Integer | a <-x]
-      -- result = take 5 y
       g =
         PS
           { bird1 = S.singleton (V2 xm ym),
@@ -215,27 +203,3 @@ initChoices2 = D.dialog (Just "Double Model Chosen") (Just (0, choices)) 50
       [ ("Start Server", 0),
         ("Join Server", 1)
       ]
-
--- isCurr :: PlayState -> Int -> Int -> Bool
--- isCurr s r c = Board.pRow p == r && Board.pCol p == c
---   where
---     p = psPos s
-
--- next :: PlayState -> Board.Result Board.Board -> Either (Board.Result ()) PlayState
--- next s Board.Retry     = Right s
--- next s (Board.Cont b') = Right (s { psBoard = b'
---                                   , psTurn  = Board.flipXO (psTurn s) })
--- next s res             = nextBoard s res
-
--- nextBoard :: PlayState -> Board.Result a -> Either (Board.Result ()) PlayState
--- nextBoard s res = case res' of
---                     Board.Win _ -> Left res'
---                     Board.Draw  -> Left res'
---                     _           -> Right s'
---   where
---     sc'  = Score.add (psScore s) (Board.boardWinner res)
---     res' = Score.winner sc'
---     s'   = s { psScore = sc'                   -- update the score
---              , psBoard = mempty                -- clear the board
---              , psTurn  = Score.startPlayer sc' -- toggle start player
---              }

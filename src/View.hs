@@ -59,17 +59,10 @@ view3 s = [ui]
 
 view4 s = [C.center $ padRight (Pad 2) (drawStats s)]
 
--- view1 :: PlayState -> Widget String
--- view1 s =
---   withBorderStyle unicode $
---     borderWithLabel (str (header s)) $
---       vTile [ mkRow s row | row <- [1..dim] ]
-
 view1 g@PS {isNetwork = s} = case s of
   0 -> [C.center $ padRight (Pad 2) (drawStats g) <+> drawGridSingle g]
   1 -> [C.center $ padRight (Pad 2) (drawStats g) <+> drawGrid g]
 
--- drawStats :: Game -> Widget Name
 drawStats g@PS {gameState = d} = case d of
   1 ->
     hLimit 11 $
@@ -127,8 +120,6 @@ isPillar g (V2 x y)
   | otherwise = False
 
 isBonus g@PS {bonus = (V2 xb yb)} (V2 x y) = xb == x && yb == y
-
--- gapSize = height * 3 `div` 10
 
 drawCell Snake = withAttr snakeAttr cw
 drawCell Bird = withAttr birdAttr cw
