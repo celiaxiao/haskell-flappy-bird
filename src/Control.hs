@@ -30,8 +30,6 @@ import qualified Data.String.Utils as U
 import qualified Graphics.Vty as V
 import Linear.V2 (V2 (..), _x, _y)
 import Model
-import Model.Board
-import Model.Player
 import Network.Socket hiding (recv)
 import Network.Socket.ByteString (recv, sendAll)
 import System.IO
@@ -47,7 +45,6 @@ funcs = unsafePerformIO $ newIORef Map.empty
 net_insert :: String -> Int -> IO ()
 net_insert str d = atomicModifyIORef funcs (\m -> (Map.insert str d m, ()))
 
--- net_lookup :: IO ()
 net_lookup str = do
   fs <- readIORef funcs
   case Map.lookup str fs of
@@ -55,27 +52,14 @@ net_lookup str = do
       return x
     Nothing -> return 0
 
--- control :: PlayState -> BrickEvent n Tick -> EventM n (Next PlayState)
 control s = control' (gameState s) s
 
 control' 1 g ev = case ev of
-  -- AppEvent Tick                   -> Brick.continue =<< liftIO (update s)
-  -- AppEvent Tick                   -> Brick.continue (update s (isNetwork s))
-  -- T.VtyEvent (V.EvKey V.KEnter _) -> nextS s =<< liftIO (play X s)
-  -- T.VtyEvent (V.EvKey V.KUp   _)  -> Brick.continue (move up    s)
-  -- T.VtyEvent (V.EvKey V.KDown _)  -> Brick.continue (move down  s)
-  -- T.VtyEvent (V.EvKey V.KLeft _)  -> Brick.continue (move left  s)
-  -- T.VtyEvent (V.EvKey V.KRight _) -> Brick.continue (move right s)
-  -- T.VtyEvent (V.EvKey V.KEsc _)   -> Brick.halt s
   AppEvent Tick -> Brick.continue =<< liftIO (update $ eatBonus $ step2 (step g))
   T.VtyEvent (V.EvKey V.KUp []) -> Brick.continue $ turn North g
   T.VtyEvent (V.EvKey V.KDown []) -> Brick.continue $ turn South g
-  -- T.VtyEvent (V.EvKey V.KRight []) -> Brick.continue $ turn East g
-  -- T.VtyEvent (V.EvKey V.KLeft []) -> Brick.continue $ turn West g
   T.VtyEvent (V.EvKey (V.KChar 'k') []) -> Brick.continue $ turn North g
   T.VtyEvent (V.EvKey (V.KChar 'j') []) -> Brick.continue $ turn South g
-  -- T.VtyEvent (V.EvKey (V.KChar 'l') []) -> Brick.continue $ turn East g
-  -- T.VtyEvent (V.EvKey (V.KChar 'h') []) -> Brick.continue $ turn West g
   T.VtyEvent (V.EvKey (V.KChar 'r') []) -> Brick.continue =<< liftIO initGame
   T.VtyEvent (V.EvKey (V.KChar 's') []) -> Brick.continue =<< liftIO (writescore g)
   T.VtyEvent (V.EvKey (V.KChar 'q') []) -> Brick.halt g
@@ -87,17 +71,11 @@ control' 3 s ev = control3 s ev
 control' 4 s ev = control4 s ev
 control' _ s _ = Brick.continue s
 
--- | Step forward in time
 step2
   g@PS {score = s} = if isdie g then g {gameState = 4, self_win = 1} else g {gameState = 1, score = s + 5}
 
--- if isdie g
---   then g & gameState .~ 4 & score .~ s
---   else move g & gameState .~ 1 & score .~ s + 5
 
 step s = flip execState s . runMaybeT $ do
-  -- MaybeT $ guard . not <$> orM [use paused, use dead] -- MaybeT $ guard . not <$> orM [use paused, use dead]
-  -- MaybeT . fmap Just $ locked .= False
   shouldUpdate <|> generatePillar <|> MaybeT (Just <$> modify move)
 
 update s = case (isNetwork s) of
@@ -169,7 +147,6 @@ update s = case (isNetwork s) of
                   comp_win = comp_win
                 })
 
--- game start display control
 control0 d ev = case ev of
   V.EvKey V.KEsc [] -> Brick.halt d
   V.EvKey V.KEnter [] -> do
@@ -205,7 +182,6 @@ getState2 s d = case D.dialogSelection d of
 
 control3 s (T.VtyEvent ev) =
   case ev of
-    -- AppEvent Tick -> Brick.continue =<< liftIO (update s)
     V.EvKey V.KEsc [] -> Brick.halt s
     V.EvKey V.KEnter [] -> case F.focusGetCurrent (_focusRing (st s)) of
       Just "Edit1" -> do
@@ -286,7 +262,6 @@ shouldUpdate = do
 isClient :: PlayState -> Bool
 isClient PS {isNetwork = isn, isServer = iss} = isn == 1 && iss == 0
 
--- generatePillar :: MaybeT (State Game) ()
 generatePillar :: MaybeT (StateT PlayState Identity) ()
 generatePillar = do
   MaybeT . fmap guard $ (isWall <$> get)
@@ -306,12 +281,7 @@ generatePillar = do
 
 isWall g = distanceToWall g == 0
 
--- generate the length of next pillar3
--- nextB :: Game -> Coord -> Coord
--- nextB g@Game {bonus = bonus, nextBonus = nb} c = nb
 
--- | Possibly eat bonus if next head position is bonus
--- eatBonus :: Game -> Game
 eatBonus g@PS {nextBonus = nb, score = s, bonusList = bl} =
   if isBonus g
     then
@@ -321,14 +291,8 @@ eatBonus g@PS {nextBonus = nb, score = s, bonusList = bl} =
         }
     else g
 
---   if isBonus g
---     then g & bonus .~ nb & score .~ (s + 20)
---     else g
-
--- isBonus :: Game -> Bool
 isBonus PS {bonus = bonus, bird1 = bird1} = bonus `elem` bird1
 
--- nextRandomPillar :: State Game ()
 nextRandomPillar = do
   g <- get
   Control.Monad.Trans.State.put g {randP = (randP g + 1) `mod` pListLen}
@@ -337,31 +301,19 @@ updateBonus = do
   g <- get
   Control.Monad.Trans.State.put g {nextBonus = (nextBonus g + 1) `mod` bListLen}
 
--- generate the length of next pillar. If current x-coord is 0, it means we've touched the wall
--- so we need to use a new random length `rp`. Else, we remain the same
--- nextP :: Int -> Int -> Int -> Int
 nextP x rp p = if x /= 0 then p else rp
 
--- generate the length of next pillar1
--- nextP1 :: Game -> Int -> Int
 nextP1 PS {x1 = xx1, pl1 = ppl1, randP = rp, randPs = rps} =
   nextP xx1 (rps !! rp) ppl1
 
--- generate the length of next pillar2
--- nextP2 :: Game -> Int -> Int
 nextP2 PS {x2 = xx2, pl2 = ppl2, randP = rp} =
   nextP xx2 rp ppl2
 
--- generate the length of next pillar3
--- nextP3 :: Game -> Int -> Int
 nextP3 PS {x3 = xx3, pl3 = ppl3, randP = rp} =
   nextP xx3 rp ppl3
 
---move pillar to the left by decreasing the x-coord
--- nextX :: Game -> Int -> Int
 nextX g x = (x -1) `mod` width
 
--- distanceToWall :: Game -> Int
 distanceToWall PS {x1 = xx1, x2 = xx2, x3 = xx3} = minimum [x | x <- [xx1, xx2, xx3]]
 
 isdie g@PS {bird1 = ((V2 xm ym) :<| _)}
@@ -370,10 +322,6 @@ isdie g@PS {bird1 = ((V2 xm ym) :<| _)}
   | iscollision g = True
 isdie _ = False
 
--- collision
-
--- if ym == 1 || ym==20 then True else False
--- iscollision :: Game -> Bool
 iscollision g@PS {bird1 = ((V2 xm ym) :<| _), pl1 = pl1, pl2 = pl2, pl3 = pl3, x1 = x1, x2 = x2, x3 = x3}
   | collide xm ym x1 pl1 = True
   | collide xm ym x2 pl2 = True
@@ -383,7 +331,6 @@ iscollision _ = False
 collide :: Int -> Int -> Int -> Int -> Bool
 collide bx by px py = bx == px && (by `elem` [0 .. py] ++ [py + gapSize .. height])
 
--- move :: Game -> Game
 move g@PS {bird1 = (s :|> _), x1 = xx1, x2 = xx2, x3 = xx3} =
   g
     { bird1 = nextHead g <| s,
@@ -395,28 +342,20 @@ move g@PS {bird1 = (s :|> _), x1 = xx1, x2 = xx2, x3 = xx3} =
     }
 move _ = error "Snakes can't be empty!"
 
--- | Get next head position of the snake
--- nextHead :: Game -> Coord
+
 nextHead PS {dir = d, bird1 = (a :<| _)}
   | d == North = a & _y %~ (\y -> (y - 1) `mod` height)
   | d == South = a & _y %~ (\y -> (y - 1) `mod` height)
 nextHead _ = error "Snakes can't be empty!"
 
--- moveHead :: Game -> Coord
 moveHead PS {dir = d, bird1 = (a :<| _)} = a & _y %~ (\y -> y + 4)
 
--- | Turn game direction (only turns orthogonally)
---
--- Implicitly unpauses yet locks game
--- turn :: Direction -> Game -> Game
+
 turn d g@PS {bird1 = (s :|> _)} =
   g
     { bird1 = (moveHead g <| s)
     }
 
-
-
--- drawInt :: Int -> Int -> IO Int
 drawInt x y = getStdRandom (randomR (x, y))
 
 bird2int :: Seq Coord -> Int
@@ -425,7 +364,6 @@ bird2int ((V2 xm ym) :<| _) = ym
 int2bird :: Int -> Seq Coord
 int2bird ym = (S.singleton (V2 birdXPos ym))
 
--- File IO
 addscorelist :: PlayState -> [Int] -> PlayState
 addscorelist
   g@PS
@@ -450,30 +388,19 @@ runServer ip port = do
 
 
   (conn, _) <- accept sock
-  -- _ <- net_insert "bird_y_self" 5
-  -- x <- net_lookup "bird_y_self"
-  -- print $ show x
-  -- print "TCP server is waiting for a message..."
+
   rrLoop conn
   where
     rrLoop conn = do
       msg <- recv conn 1024
-      -- gs <- net_lookup "gameState"
-      -- print gs
 
       net_insert "gameState" 1
-      -- gs <- net_lookup "gameState"
-      -- print gs 
       let m = splitOn "," (C.unpack msg)
-      -- print $ show (C.unpack msg)
       case C.unpack msg of
         "exit" -> do
-          -- print "TCP server socket is closing now."
           close conn
-          -- close sock
           return ()
         _ -> do
-          -- print "TCP server socket is closing now."
           let n = length m
           net_insert "bird_comp" (read (m !! 0))
           net_insert "comp_win" (read (m !! 1))
@@ -488,8 +415,6 @@ runServer ip port = do
           
           let msg = C.pack (show x ++ "," ++ show pl1 ++ "," ++ show pl2 ++ "," ++ show pl3 ++ "," ++ show x1 ++ "," ++ show x2 ++ "," ++ show x3 ++ "," ++ show self_win)
           unless (BS.null msg) $ do
-            -- print ("TCP server received: " ++ C.unpack msg)
-            -- print "TCP server is now sending a message to the client"
             sendAll conn msg
           rrLoop conn
 
@@ -504,24 +429,18 @@ runClient ip port = do
   where
     rrLoop sock = do
       x <- net_lookup "bird_self"
-      -- score <- net_lookup "score"
       net_insert "bird_comp" x
       self_win <- net_lookup "self_win"
       let send_msg = show x ++ "," ++ show self_win
       sendAll sock $ C.pack send_msg
 
       msg <- recv sock 1024
-      -- print ("TCP client received: " ++ C.unpack msg)
       case (C.unpack msg) of
         "exit" -> do
-          -- print "TCP server socket is closing now."
           close sock
-          -- close sock
           return ()
         _ -> do
-          -- print "hhhh"
           let m = splitOn "," (C.unpack msg)
-          -- print $ m
           net_insert "bird_comp" (read (m !! 0))
           net_insert "pl1" (read (m !! 1))
           net_insert "pl2" (read (m !! 2))
@@ -531,11 +450,9 @@ runClient ip port = do
           net_insert "x3" (read (m !! 6))
           net_insert "comp_win" (read (m !! 7))
 
-          -- print ("TCP client received: " ++ C.unpack msg)
           threadDelay 100000
 
           rrLoop sock
-
 
 
 --------------

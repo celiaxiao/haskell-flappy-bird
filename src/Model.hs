@@ -16,20 +16,12 @@ import System.IO
 import System.Random (Random (..), getStdRandom, randomRIO)
 import Prelude hiding ((!!))
 
--- import View (height, width, gapSize, offset)
-
 -------------------------------------------------------------------------------
 
 -- | Ticks mark passing of time: a custom event that we constantly stream
 
 -------------------------------------------------------------------------------
 data Tick = Tick
-
--------------------------------------------------------------------------------
-
--- | Top-level App State ------------------------------------------------------
-
--------------------------------------------------------------------------------
 
 data State
   = Intro
