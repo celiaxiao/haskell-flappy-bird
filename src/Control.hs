@@ -544,7 +544,7 @@ prop_sort_des xs = reverse (sort xs) == sortDes xs
   where 
     types = xs :: [Int]
 
--- >>> quickCheck testSortDes
+-- >>> quickCheck prop_sort_des
 -- +++ OK, passed 100 tests.
 --
 
@@ -558,11 +558,12 @@ prop_next_p_nonzero x rp p =
   (x /= 0) ==> (nextP x rp p == p)
 
 
--- >>> quickCheck testNextPNonZero
--- +++ OK, passed 100 tests; 13 discarded.
+-- >>> quickCheck prop_next_p_zero
+-- *** Gave up! Passed only 37 tests; 1000 discarded tests.
+--
 
--- >>> quickCheck testNextPZero
--- *** Gave up! Passed only 26 tests; 1000 discarded tests.
+-- >>> quickCheck prop_next_p_nonzero
+-- +++ OK, passed 100 tests; 15 discarded.
 --
 
 
@@ -575,10 +576,10 @@ prop_collide_y :: Int -> Int -> Int -> Int -> Property
 prop_collide_y bx by px py =
   (by `elem` [py+1 .. py+gapSize-1]) ==> (collide bx by px py == False)
 
--- >>> quickCheck testCollideX
--- +++ OK, passed 100 tests; 12 discarded.
+-- >>> quickCheck prop_collide_x
+-- +++ OK, passed 100 tests; 10 discarded.
 --
 
--- >>> quickCheck testCollideY
--- +++ OK, passed 100 tests; 659 discarded.
+-- >>> quickCheck prop_collide_y
+-- +++ OK, passed 100 tests; 928 discarded.
 --
