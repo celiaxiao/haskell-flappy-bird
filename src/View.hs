@@ -1,23 +1,15 @@
 module View (view) where
 
 import Brick
-import qualified Brick.AttrMap as A
 import qualified Brick.Focus as F
-import qualified Brick.Types as T
-import Brick.Util (bg, on)
-import Brick.Widgets.Border (borderWithLabel, hBorder, vBorder)
 import qualified Brick.Widgets.Border as B
-import Brick.Widgets.Border.Style (unicode)
 import qualified Brick.Widgets.Border.Style as BS
-import Brick.Widgets.Center (center)
 import qualified Brick.Widgets.Center as C
 import qualified Brick.Widgets.Dialog as D
 import qualified Brick.Widgets.Edit as E
-import Graphics.Vty hiding (dim)
-import qualified Graphics.Vty as V
+import Data.List
 import Linear.V2 (V2 (..))
 import Model
-import Model.Board
 import Text.Printf (printf)
 
 -------------------------------------------------------------------------------
@@ -57,7 +49,8 @@ view3 s = [ui]
           <=> str " "
           <=> str (st2msg s)
 
-view4 s = [C.center $ padRight (Pad 2) (drawStats s)]
+-- view4 :: p -> PlayState -> Widget n
+view4 s = [C.center $ padRight (Pad 2) (drawGameOver s)]
 
 view1 g@PS {isNetwork = s} = case s of
   0 -> [C.center $ padRight (Pad 2) (drawStats g) <+> drawGridSingle g]
@@ -68,9 +61,10 @@ drawStats g@PS {gameState = d} = case d of
     hLimit 11 $
       vBox
         [ drawScore (score g),
-          padTop (Pad 2) $ emptyWidget
+          padTop (Pad 2) emptyWidget
         ]
-  4 -> drawGameOver g
+
+-- 4 -> drawGameOver g
 
 drawScore n =
   withBorderStyle BS.unicodeBold $
@@ -79,11 +73,16 @@ drawScore n =
         padAll 1 $
           str $ show n
 
-drawGameOver g@PS {historyscore = history} =
+-- drawGameOver :: PlayState -> Widget PlayState
+drawGameOver PS {historyscore = history, score = s} =
   vBox $
     str "   Game Over" :
-    str " Your Score is" :
-    (str <$> ["\t" <> (show i) | i <- history])
+    str (" Your Score is: " ++ (show s)) :
+    str "To save the score in leaderboard, press s" :
+    str "   LeadBoard:" :
+    (str <$> ["      " <> show i | i <- take 5 $ reverse $ sort (s : history)])
+
+-- (str <$> ["\t" <> (show i) | i <- history])
 
 drawGrid g =
   withBorderStyle BS.unicodeBold $
@@ -119,7 +118,7 @@ isPillar g (V2 x y)
   | x == (x3 g) && (y `elem` [0 .. (pl3 g)] ++ [(pl3 g) + gapSize .. height]) = True
   | otherwise = False
 
-isBonus g@PS {bonus = (V2 xb yb)} (V2 x y) = xb == x && yb == y
+isBonus PS {bonus = (V2 xb yb)} (V2 x y) = xb == x && yb == y
 
 drawCell Snake = withAttr snakeAttr cw
 drawCell Bird = withAttr birdAttr cw
@@ -128,3 +127,23 @@ drawCell Bonus = withAttr bonusAttr cw
 drawCell Empty = withAttr emptyAttr cw
 
 cw = str "  "
+
+split :: String -> [String]
+split [] = [""]
+split (c : cs)
+  | c == '\n' = "" : rest
+  | otherwise = (c : head rest) : tail rest
+  where
+    rest = Model.split cs
+
+scorelist :: [Integer]
+scorelist = [1, 2, 3, 4, 5]
+
+filename :: String
+filename = "test.txt"
+
+writescore :: PlayState -> IO PlayState
+writescore g@PS {dir = d, score = s} = do
+  let x = show s
+  appendFile Model.filename (x ++ "\n")
+  return g

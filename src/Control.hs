@@ -25,6 +25,7 @@ import Data.List.Split
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq (..), (<|))
+import qualified Data.Sequence as S
 import qualified Data.String.Utils as U
 import qualified Graphics.Vty as V
 import Linear.V2 (V2 (..), _x, _y)
@@ -36,8 +37,6 @@ import Network.Socket.ByteString (recv, sendAll)
 import System.IO
 import System.IO.Unsafe
 import System.Random (Random (..), getStdRandom, newStdGen)
-
-import qualified Data.Sequence as S
 
 -------------------------------------------------------------------------------
 
@@ -75,7 +74,8 @@ control' 1 g ev = case ev of
   T.VtyEvent (V.EvKey (V.KChar 'j') []) -> Brick.continue $ turn South g
   -- T.VtyEvent (V.EvKey (V.KChar 'l') []) -> Brick.continue $ turn East g
   -- T.VtyEvent (V.EvKey (V.KChar 'h') []) -> Brick.continue $ turn West g
-  T.VtyEvent (V.EvKey (V.KChar 'r') []) -> Brick.continue =<< liftIO (initGame)
+  T.VtyEvent (V.EvKey (V.KChar 'r') []) -> Brick.continue =<< liftIO initGame
+  T.VtyEvent (V.EvKey (V.KChar 's') []) -> Brick.continue =<< liftIO (writescore g)
   T.VtyEvent (V.EvKey (V.KChar 'q') []) -> Brick.halt g
   T.VtyEvent (V.EvKey V.KEsc []) -> Brick.halt g
   _ -> Brick.continue g -- Brick.halt s
@@ -174,6 +174,9 @@ control3 s _ = Brick.continue s
 
 control4 s ev = case ev of
   V.EvKey V.KEsc [] -> Brick.halt s
+  (V.EvKey (V.KChar 'r') []) -> Brick.continue =<< liftIO initGame
+  (V.EvKey (V.KChar 's') []) -> Brick.continue =<< liftIO (writescore s)
+  (V.EvKey (V.KChar 'q') []) -> Brick.halt s
   _ -> Brick.continue s
 
 getEdit1 edt st = st {_edit1 = edt}
@@ -222,7 +225,7 @@ eatBonus g@PS {nextBonus = nb, score = s, bonusList = bl} =
     then
       g
         { bonus = V2 birdXPos (bl !! nb),
-          score = s + 100000 --20
+          score = s + 20 --20
         }
     else g
 
@@ -238,26 +241,9 @@ nextRandomPillar = do
   g <- get
   Control.Monad.Trans.State.put g {randP = (randP g + 1) `mod` pListLen}
 
--- do
---   g <- get
---   let (randp :| randps) = (randPs g)
---   -- (randp :| randps) <- use randPs
---   -- randPs .= randps
---   -- g <- get
---   let touchWall = x1 g == 0 || x2 g == 0 || x3 g == 0
---   if touchWall
---     then nextRandomPillar
---     else Control.Monad.Trans.State.put g {randP = randp}
-
 updateBonus = do
   g <- get
   Control.Monad.Trans.State.put g {nextBonus = (nextBonus g + 1) `mod` bListLen}
-
--- let (bo :| bs) = bonusList g
--- Control.Monad.Trans.State.put
---   g
---     { nextBonus = bo
---     }
 
 -- generate the length of next pillar. If current x-coord is 0, it means we've touched the wall
 -- so we need to use a new random length `rp`. Else, we remain the same
@@ -286,23 +272,13 @@ nextX g x = (x -1) `mod` width
 -- distanceToWall :: Game -> Int
 distanceToWall PS {x1 = xx1, x2 = xx2, x3 = xx3} = minimum [x | x <- [xx1, xx2, xx3]]
 
--- bird1Y :: Game -> Int
--- bird1Y Game {_bird1 = (V2 x y)} = y
-
--- writescore::Game -> IO Game
--- writescore g@Game { _dir = d, _bird1 = ((V2 xm ym) :<| _) ,_score=s} = do
---       let x = show s
---       appendFile "/home/cse230/Desktop/test.txt" (x ++ "\n")
---       return g -- TODO create file
-
--- isdie :: Game -> Bool
--- isdie g@PS {bird1 = ((V2 xm ym) :<| _)}
---   | ym == 0 = True
---   | ym == height = True
---   | iscollision g = True
+isdie g@PS {bird1 = ((V2 xm ym) :<| _)}
+  | ym == 0 = True
+  | ym == height = True
+  | iscollision g = True
 isdie _ = False
 
--- TODO collision
+-- collision
 
 -- if ym == 1 || ym==20 then True else False
 -- iscollision :: Game -> Bool
@@ -311,7 +287,6 @@ iscollision g@PS {bird1 = ((V2 xm ym) :<| _), pl1 = pl1, pl2 = pl2, pl3 = pl3, x
   | xm == x2 && (ym `elem` [0 .. pl2] ++ [pl2 + gapSize .. height]) = True
   | xm == x3 && (ym `elem` [0 .. pl3] ++ [pl3 + gapSize .. height]) = True
 iscollision _ = False
-
 
 -- move :: Game -> Game
 move g@PS {bird1 = (s :|> _), x1 = xx1, x2 = xx2, x3 = xx3, gameState = l, score = sc} =
@@ -345,14 +320,6 @@ turn d g@PS {bird1 = (s :|> _)} =
     { bird1 = (moveHead g <| s)
     }
 
--- turn d g = g & dir %~ turnDir d & paused .~ False & locked .~ Trues
--- turn d g = g
--- turn d g = if g ^. locked
---   then g
---   else g & dir %~ turnDir d & paused .~ False & locked .~ True
-
--- turnDir :: Direction -> Direction -> Direction
--- turnDir n c = c
 turnDir n c
   | c `elem` [North, South] && n `elem` [East, West] = n
   | c `elem` [East, West] && n `elem` [North, South] = n
@@ -367,7 +334,23 @@ bird2int ((V2 xm ym) :<| _) = ym
 int2bird :: Int -> Seq Coord
 int2bird ym = (S.singleton (V2 birdXPos ym))
 
-runServer ip port = do 
+-- File IO
+addscorelist :: PlayState -> [Int] -> PlayState
+addscorelist
+  g@PS
+    { historyscore = _
+    }
+  h = g {historyscore = h}
+
+--
+writescore :: PlayState -> IO PlayState
+writescore g@PS {score = s} =
+  do
+    let x = show s
+    _ <- appendFile filename (x ++ "\n")
+    return g
+
+runServer ip port = do
   addrinfos <- getAddrInfo Nothing (Just ip) (Just port)
   let serveraddr = head addrinfos
   sock <- socket (addrFamily serveraddr) Stream defaultProtocol
@@ -435,8 +418,8 @@ runClient ip port = do
           net_insert "bird_comp" x
           let send_msg = show x ++ "," ++ show score
           sendAll sock $ C.pack send_msg
-      -- sendAll sock $ C.pack "exit"
-      
-      --print ("TCP client received: " ++ C.unpack msg)
+          -- sendAll sock $ C.pack "exit"
+
+          --print ("TCP client received: " ++ C.unpack msg)
           threadDelay 1000000
           rrLoop sock
