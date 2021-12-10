@@ -475,3 +475,25 @@ initGame = do
 
 fromList :: [a] -> Stream a
 fromList = foldr (:|) (error "Streams must be infinite")
+
+
+turn :: Game -> Game
+turn g@Game{ _bird1=((V2 xm ym) :<| _),_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = old,
+            _randP = rp,
+            _randPs = rps,
+            _pl1 = pl1,
+            _pl2 = pl2,
+            _pl3 = pl3,
+            _x1 = x1,
+            _x2 = x2,
+            _x3 = x3,
+            _wall = w} = Game{ _bird1=(inttobird xm (ym+4)),_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = old,
+                                     _randP = rp,
+                                     _randPs = rps,
+                                     _pl1 = pl1,
+                                     _pl2 = pl2,
+                                     _pl3 = pl3,
+                                     _x1 = x1,
+                                     _x2 = x2,
+                                     _x3 = x3,
+                                     _wall = w}
