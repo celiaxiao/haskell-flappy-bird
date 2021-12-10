@@ -74,13 +74,22 @@ drawScore n =
           str $ show n
 
 -- drawGameOver :: PlayState -> Widget PlayState
-drawGameOver PS {historyscore = history, score = s} =
+drawGameOver PS {historyscore = history, score = s, self_win = sw, comp_win = cw} =
   vBox $
+    (winmsg) :
     str "   Game Over" :
     str (" Your Score is: " ++ (show s)) :
     str "To save the score in leaderboard, press s" :
     str "   LeadBoard:" :
     (str <$> ["      " <> show i | i <- take 5 $ reverse $ sort (s : history)])
+    where
+      winmsg = case sw of
+        1 -> case cw of
+          1 -> str "1 1"
+          0 -> str "You win!"
+        0 -> case cw of
+          1 -> str "You lose!"
+          0 -> str "0 0"
 
 -- (str <$> ["\t" <> (show i) | i <- history])
 

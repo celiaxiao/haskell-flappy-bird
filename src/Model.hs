@@ -119,7 +119,10 @@ data PlayState = PS
     score :: Int,
     bonusList :: [Int],
     dir :: Direction,
-    nextBonus :: Int
+    nextBonus :: Int,
+    self_win :: Int,
+    comp_win :: Int,
+    win :: Int
   }
 
 
@@ -193,7 +196,10 @@ initGame = do
                 (E.editor "Edit2" (Just 2) ""),
             st2msg = "Press Enter to confirm, Esc to quit.",
             birdY = 0,
-            nextBonus = 0
+            nextBonus = 0,
+            self_win = 0,
+            comp_win = 0,
+            win = 0
           }
   return g
 
