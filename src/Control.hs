@@ -542,8 +542,8 @@ runClient ip port = do
 
 
 --------------
-testSortDes :: [Int] -> Bool
-testSortDes xs = reverse (sort xs) == sortDes xs
+prop_sort_des :: [Int] -> Bool
+prop_sort_des xs = reverse (sort xs) == sortDes xs
   where 
     types = xs :: [Int]
 
@@ -552,12 +552,12 @@ testSortDes xs = reverse (sort xs) == sortDes xs
 --
 
 
-testNextPZero :: Int -> Int -> Int -> Property
-testNextPZero x rp p = 
+prop_next_p_zero :: Int -> Int -> Int -> Property
+prop_next_p_zero x rp p =
   (x == 0) ==> (nextP x rp p == rp)
 
-testNextPNonZero :: Int -> Int -> Int -> Property
-testNextPNonZero x rp p = 
+prop_next_p_nonzero :: Int -> Int -> Int -> Property
+prop_next_p_nonzero x rp p =
   (x /= 0) ==> (nextP x rp p == p)
 
 
@@ -570,12 +570,12 @@ testNextPNonZero x rp p =
 
 
 
-testCollideX :: Int -> Int -> Int -> Int -> Property
-testCollideX bx by px py = 
+prop_collide_x :: Int -> Int -> Int -> Int -> Property
+prop_collide_x bx by px py =
   (bx /= px) ==> (collide bx by px py == False)
 
-testCollideY :: Int -> Int -> Int -> Int -> Property
-testCollideY bx by px py = 
+prop_collide_y :: Int -> Int -> Int -> Int -> Property
+prop_collide_y bx by px py =
   (by `elem` [py+1 .. py+gapSize-1]) ==> (collide bx by px py == False)
 
 -- >>> quickCheck testCollideX
