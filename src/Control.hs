@@ -149,6 +149,7 @@ update s = case (isNetwork s) of
               x3 = x3
             })
 
+-- game start display control
 control0 d ev = case ev of
   V.EvKey V.KEsc [] -> Brick.halt d
   V.EvKey V.KEnter [] -> do
@@ -163,6 +164,7 @@ getState s d = case (D.dialogSelection d) of
   Just 0 -> s {gameState = 1, isNetwork = 0}
   Just 1 -> s {gameState = 2, isNetwork = 1}
   Nothing -> s {gameState = 0}
+
 
 control2 d ev@(T.VtyEvent evt) = case ev of
   AppEvent Tick -> Brick.continue =<< liftIO (update d)

@@ -20,11 +20,11 @@ import Text.Printf (printf)
 data Cell = Snake | Bird | Bonus | Empty | BirdTwo
 
 view s = case gameState s of
-  0 -> view0 s
-  1 -> view1 s
-  2 -> view2 s
-  3 -> view3 s
-  _ -> view4 s
+  0 -> view0 s -- start 
+  1 -> view1 s -- game
+  2 -> view2 s -- start/ join server 
+  3 -> view3 s -- join server
+  _ -> view4 s -- game over
 
 -- view0 :: PlayState -> [Widget ()]
 view0 s = [ui]
