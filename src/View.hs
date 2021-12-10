@@ -92,7 +92,7 @@ drawGameOver PS {historyscore = history, score = s, self_win = sw, comp_win = cw
         (1, 0, 1) -> str "You win!"
         _ -> str ""
 
-
+drawGrid :: PlayState -> Widget n
 drawGrid g =
   withBorderStyle BS.unicodeBold $
     B.borderWithLabel (str "Flappy Bird") $

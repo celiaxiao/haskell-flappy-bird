@@ -40,6 +40,7 @@ funcs = unsafePerformIO $ newIORef Map.empty
 net_insert :: String -> Int -> IO ()
 net_insert str d = atomicModifyIORef funcs (\m -> (Map.insert str d m, ()))
 
+net_lookup :: String -> IO Int
 net_lookup str = do
   fs <- readIORef funcs
   case Map.lookup str fs of
@@ -47,6 +48,7 @@ net_lookup str = do
       return x
     Nothing -> return 0
 
+control :: PlayState -> BrickEvent n Tick -> EventM String (Next PlayState)
 control s = control' (gameState s) s
 
 control' 1 g ev = case ev of
@@ -66,13 +68,15 @@ control' 3 s ev = control3 s ev
 control' 4 s ev = control4 s ev
 control' _ s _ = Brick.continue s
 
+step2 :: PlayState -> PlayState
 step2
   g@PS {score = s} = if isdie g then g {gameState = 4, self_win = 1} else g {gameState = 1, score = s + 5}
 
-
+step :: PlayState -> PlayState
 step s = flip execState s . runMaybeT $ do
   shouldUpdate <|> generatePillar <|> MaybeT (Just <$> modify move)
 
+update :: PlayState -> IO PlayState
 update s = case (isNetwork s) of
   0 -> do
     -- print "not network"
@@ -142,6 +146,7 @@ update s = case (isNetwork s) of
                   comp_win = comp_win
                 })
 
+control0 :: PlayState -> V.Event -> EventM n (Next PlayState)
 control0 d ev = case ev of
   V.EvKey V.KEsc [] -> Brick.halt d
   V.EvKey V.KEnter [] -> do
@@ -152,12 +157,14 @@ control0 d ev = case ev of
     Brick.continue (d {choices = nextDialog})
 control0 d _ = Brick.continue d
 
+getState :: (Eq a, Num a) => PlayState -> D.Dialog a -> PlayState
 getState s d = case (D.dialogSelection d) of
   Just 0 -> s {gameState = 1, isNetwork = 0}
   Just 1 -> s {gameState = 2, isNetwork = 1}
   Nothing -> s {gameState = 0}
 
 
+control2 :: PlayState -> BrickEvent n1 Tick -> EventM n2 (Next PlayState)
 control2 d ev@(T.VtyEvent evt) = case ev of
   AppEvent Tick -> Brick.continue =<< liftIO (update d)
   T.VtyEvent (V.EvKey V.KEsc []) -> Brick.halt d
@@ -170,11 +177,14 @@ control2 d ev@(T.VtyEvent evt) = case ev of
 
 control2 d _ = Brick.continue d
 
+
+getState2 :: (Eq a, Num a) => PlayState -> D.Dialog a -> PlayState
 getState2 s d = case D.dialogSelection d of
   Just 0 -> s {gameState = 3, isServer = 1}
   Just 1 -> s {gameState = 3, isServer = 0}
   Nothing -> s {gameState = 2}
 
+control3 :: PlayState -> BrickEvent n Tick -> EventM String (Next PlayState)
 control3 s (T.VtyEvent ev) =
   case ev of
     V.EvKey V.KEsc [] -> Brick.halt s
@@ -226,7 +236,7 @@ control3 s (T.VtyEvent ev) =
 control3 s (AppEvent Tick) = Brick.continue =<< liftIO (update s)
 control3 s _ = Brick.continue s
 
-
+control4 :: PlayState -> BrickEvent n1 Tick -> EventM n2 (Next PlayState)
 control4 s evt@(VtyEvent ev) = case ev of
   V.EvKey V.KEsc [] -> Brick.halt s
   (V.EvKey (V.KChar 'r') []) -> Brick.continue =<< liftIO initGame
@@ -274,9 +284,10 @@ generatePillar = do
     nextRandomPillar
     updateBonus
 
+isWall :: PlayState -> Bool
 isWall g = distanceToWall g == 0
 
-
+eatBonus :: PlayState -> PlayState
 eatBonus g@PS {nextBonus = nb, score = s, bonusList = bl} =
   if isBonus g
     then
@@ -286,37 +297,46 @@ eatBonus g@PS {nextBonus = nb, score = s, bonusList = bl} =
         }
     else g
 
+isBonus :: PlayState -> Bool
 isBonus PS {bonus = bonus, bird1 = bird1} = bonus `elem` bird1
 
+nextRandomPillar :: StateT PlayState Identity ()
 nextRandomPillar = do
   g <- get
   Control.Monad.Trans.State.put g {randP = (randP g + 1) `mod` pListLen}
 
+updateBonus :: StateT PlayState Identity ()
 updateBonus = do
   g <- get
   Control.Monad.Trans.State.put g {nextBonus = (nextBonus g + 1) `mod` bListLen}
 
+nextP :: (Eq a, Num a) => a -> p -> p -> p
 nextP x rp p = if x /= 0 then p else rp
 
+nextP1 :: PlayState -> Int
 nextP1 PS {x1 = xx1, pl1 = ppl1, randP = rp, randPs = rps} =
   nextP xx1 (rps !! rp) ppl1
 
+nextP2 :: PlayState -> Int
 nextP2 PS {x2 = xx2, pl2 = ppl2, randP = rp} =
   nextP xx2 rp ppl2
 
+nextP3 :: PlayState -> Int
 nextP3 PS {x3 = xx3, pl3 = ppl3, randP = rp} =
   nextP xx3 rp ppl3
 
-nextX g x = (x -1) `mod` width
+nextX g x = (x - 1) `mod` width
 
 distanceToWall PS {x1 = xx1, x2 = xx2, x3 = xx3} = minimum [x | x <- [xx1, xx2, xx3]]
 
+isdie :: PlayState -> Bool
 isdie g@PS {bird1 = ((V2 xm ym) :<| _)}
   | ym == 0 = True
   | ym == height = True
   | iscollision g = True
 isdie _ = False
 
+iscollision :: PlayState -> Bool
 iscollision g@PS {bird1 = ((V2 xm ym) :<| _), pl1 = pl1, pl2 = pl2, pl3 = pl3, x1 = x1, x2 = x2, x3 = x3}
   | collide xm ym x1 pl1 = True
   | collide xm ym x2 pl2 = True
@@ -326,6 +346,7 @@ iscollision _ = False
 collide :: Int -> Int -> Int -> Int -> Bool
 collide bx by px py = bx == px && (by `elem` [0 .. py] ++ [py + gapSize .. height])
 
+move :: PlayState -> PlayState
 move g@PS {bird1 = (s :|> _), x1 = xx1, x2 = xx2, x3 = xx3} =
   g
     { bird1 = nextHead g <| s,
@@ -337,7 +358,7 @@ move g@PS {bird1 = (s :|> _), x1 = xx1, x2 = xx2, x3 = xx3} =
     }
 move _ = error "Snakes can't be empty!"
 
-
+nextHead :: PlayState -> V2 Int
 nextHead PS {dir = d, bird1 = (a :<| _)}
   | d == North = a & _y %~ (\y -> (y - 1) `mod` height)
   | d == South = a & _y %~ (\y -> (y - 1) `mod` height)
@@ -346,6 +367,7 @@ nextHead _ = error "Snakes can't be empty!"
 moveHead PS {dir = d, bird1 = (a :<| _)} = a & _y %~ (\y -> y + 4)
 
 
+turn :: p -> PlayState -> PlayState
 turn d g@PS {bird1 = (s :|> _)} =
   g
     { bird1 = (moveHead g <| s)
@@ -374,6 +396,7 @@ writescore g@PS {score = s} =
     _ <- appendFile filename (x ++ "\n")
     return g
 
+runServer :: HostName -> ServiceName -> IO ()
 runServer ip port = do
   addrinfos <- getAddrInfo Nothing (Just ip) (Just port)
   let serveraddr = head addrinfos
@@ -413,6 +436,7 @@ runServer ip port = do
             sendAll conn msg
           rrLoop conn
 
+runClient :: HostName -> ServiceName -> IO ()
 runClient ip port = do
   addrinfos <- getAddrInfo Nothing (Just ip) (Just port)
   let serveraddr = head addrinfos
@@ -450,7 +474,9 @@ runClient ip port = do
           rrLoop sock
 
 
---------------
+-----------------------------------------------------
+-- Testing 
+-----------------------------------------------------
 prop_sort_des :: [Int] -> Bool
 prop_sort_des xs = reverse (sort xs) == sortDes xs
   where 
