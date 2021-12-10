@@ -552,12 +552,12 @@ prop_sort_des xs = reverse (sort xs) == sortDes xs
 --
 
 
-prop_nextp_zero :: Int -> Int -> Int -> Property
-prop_nextp_zero x rp p =
+prop_next_p_zero :: Int -> Int -> Int -> Property
+prop_next_p_zero x rp p =
   (x == 0) ==> (nextP x rp p == rp)
 
-prop_nextp_nonzero :: Int -> Int -> Int -> Property
-prop_nextp_nonzero x rp p =
+prop_next_p_nonzero :: Int -> Int -> Int -> Property
+prop_next_p_nonzero x rp p =
   (x /= 0) ==> (nextP x rp p == p)
 
 
