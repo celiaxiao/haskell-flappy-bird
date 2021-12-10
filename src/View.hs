@@ -26,15 +26,19 @@ view s = case gameState s of
   3 -> view3 s -- join server
   _ -> view4 s -- game over
 
--- view0 :: PlayState -> [Widget ()]
+-- start
 view0 s = [ui]
   where
     ui = D.renderDialog (choices s) $ C.hCenter $ padAll 1 $ str "   "
+    -- choices: single/double
 
+-- start/ join server
 view2 s = [ui]
   where
     ui = D.renderDialog (choices2 s) $ C.hCenter $ padAll 1 $ str "   "
+    -- choices2: start/join server
 
+-- join server
 view3 s = [ui]
   where
     t = (st s)
@@ -50,6 +54,7 @@ view3 s = [ui]
           <=> str (st2msg s)
 
 -- view4 :: p -> PlayState -> Widget n
+-- game over
 view4 s = [C.center $ padRight (Pad 2) (drawGameOver s)]
 
 view1 g@PS {isNetwork = s} = case s of
