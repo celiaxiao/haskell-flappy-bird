@@ -51,17 +51,11 @@ bListLen = 30
 filename :: String
 filename = "test.txt"
 
--- gameOverAttr, snakeAttr, birdAttr, emptyAttr, bonusAttr :: AttrName
 gameOverAttr = attrName "gameOver"
-
 snakeAttr = attrName "snakeAttr"
-
 birdAttr = attrName "birdAttr"
-
 emptyAttr = attrName "emptyAttr"
-
 bonusAttr = attrName "bonusAttr"
-
 bird2Attr = attrName "bird2Attr"
 
 theMap :: A.AttrMap
@@ -142,10 +136,6 @@ randomList n u l = do
 sortDes :: [Int] -> [Int]
 sortDes = Data.List.sortBy (flip compare)
 
--- >>> readFile "test.txt"
--- "123"
-
---
 initGame = do
   a <- drawInt (0 + offset) ((height `div` 3) + offset)
   b <- drawInt (0 + offset) ((height `div` 3) + offset)

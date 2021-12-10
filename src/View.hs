@@ -68,7 +68,7 @@ drawScore n =
         padAll 1 $
           str $ show n
 
-drawGameOver PS {historyscore = history, score = s, self_win = sw, comp_win = cw} =
+drawGameOver PS {historyscore = history, score = s, self_win = sw, comp_win = cw, isNetwork = inn} =
   vBox $
     (winmsg) :
     str "   Game Over" :
@@ -77,13 +77,11 @@ drawGameOver PS {historyscore = history, score = s, self_win = sw, comp_win = cw
     str "   LeaderBoard:" :
     (str <$> ["      " <> show i | i <- take 5 $ reverse $ sort (s : history)])
     where
-      winmsg = case sw of
-        1 -> case cw of
-          1 -> str ""
-          0 -> str "You lose!"
-        0 -> case cw of
-          1 -> str "You win!"
-          0 -> str ""
+      winmsg = case (inn, sw, cw) of
+        (1, 1, 0) -> str "You lose!"
+        (1, 0, 1) -> str "You win!"
+        _ -> str ""
+
 
 drawGrid g =
   withBorderStyle BS.unicodeBold $
