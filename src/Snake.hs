@@ -252,6 +252,11 @@ gamebird1toint g@Game{_bird1 =a } = birdtoint a
 gamebird2toint::Game -> Int
 gamebird2toint g@Game{_bird2 = a} = birdtoint a
 
+inttogame :: Game -> Int -> Int -> Game
+inttogame g@Game { _bird1=a,_bird2=b,_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = h} xm ym =
+  Game { _bird1=a,_bird2=(S.singleton (V2 xm ym)),_isnetwork=net,_dir =d, _dead=l, _paused=p,_score=s,_locked=m ,_food=f,_historyscore = h}
+
+
 
 -- if ym == 1 || ym==20 then True else False
 -- iscollision :: Game -> Bool
