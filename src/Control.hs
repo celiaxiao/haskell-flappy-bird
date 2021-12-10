@@ -465,7 +465,6 @@ prop_sort_des xs = reverse (sort xs) == sortDes xs
 -- +++ OK, passed 100 tests.
 --
 
-
 prop_next_p_zero :: Int -> Int -> Int -> Property
 prop_next_p_zero x rp p =
   (x == 0) ==> (nextP x rp p == rp)

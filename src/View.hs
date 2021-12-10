@@ -10,10 +10,10 @@ import qualified Brick.Widgets.Edit as E
 import Data.List
 import Linear.V2 (V2 (..))
 import Model
-import Text.Printf (printf)
 
 data Cell = Snake | Bird | Bonus | Empty | BirdTwo
 
+view :: PlayState -> [Widget String]
 view s = case gameState s of
   0 -> view0 s
   1 -> view1 s
@@ -21,18 +21,28 @@ view s = case gameState s of
   3 -> view3 s
   4 -> view4 s
 
+-- display start 
+view0 :: PlayState -> [Widget n]
 view0 s = [ui]
   where
     ui = D.renderDialog (choices s) $ C.hCenter $ padAll 1 $ str "   "
     -- choices: single/double
 
--- start/ join server
+-- display game
+view1 :: PlayState -> [Widget n]
+view1 g@PS {isNetwork = s} = case s of
+  0 -> [C.center $ padRight (Pad 2) (drawStats g) <+> drawGridSingle g]
+  1 -> [C.center $ padRight (Pad 2) (drawStats g) <+> drawGrid g]
+
+-- display start/ join server 
+view2 :: PlayState -> [Widget n]
 view2 s = [ui]
   where
     ui = D.renderDialog (choices2 s) $ C.hCenter $ padAll 1 $ str "   "
     -- choices2: start/join server
 
--- join server
+-- display join server 
+view3 :: PlayState -> [Widget String]
 view3 s = [ui]
   where
     t = (st s)
@@ -47,11 +57,17 @@ view3 s = [ui]
           <=> str " "
           <=> str (st2msg s)
 
+-- display game over 
+view4 :: PlayState -> [Widget n]
 view4 s = [C.center $ padRight (Pad 2) (drawGameOver s)]
 
-view1 g@PS {isNetwork = s} = case s of
-  0 -> [C.center $ padRight (Pad 2) (drawStats g) <+> drawGridSingle g]
-  1 -> [C.center $ padRight (Pad 2) (drawStats g) <+> drawGrid g]
+drawScore :: Show a => a -> Widget n
+drawScore n =
+  withBorderStyle BS.unicodeBold $
+    B.borderWithLabel (str "Score") $
+      C.hCenter $
+        padAll 1 $
+          str $ show n
 
 drawStats g@PS {gameState = d} = case d of
   1 ->
@@ -61,13 +77,7 @@ drawStats g@PS {gameState = d} = case d of
           padTop (Pad 2) emptyWidget
         ]
 
-drawScore n =
-  withBorderStyle BS.unicodeBold $
-    B.borderWithLabel (str "Score") $
-      C.hCenter $
-        padAll 1 $
-          str $ show n
-
+drawGameOver :: PlayState -> Widget n
 drawGameOver PS {historyscore = history, score = s, self_win = sw, comp_win = cw} =
   vBox $
     (winmsg) :
@@ -75,7 +85,7 @@ drawGameOver PS {historyscore = history, score = s, self_win = sw, comp_win = cw
     str (" Your Score is: " ++ (show s)) :
     str "To save the score in leaderboard, press s" :
     str "   LeaderBoard:" :
-    (str <$> ["      " <> show i | i <- take 5 $ reverse $ sort (s : history)])
+    (str <$> ["      " <> show i | i <- take 5 $ reverse $ sort (history)])
     where
       winmsg = case sw of
         1 -> case cw of
@@ -99,6 +109,7 @@ drawGrid g =
       | isPillar g c = Snake
       | otherwise = Empty
 
+drawGridSingle :: PlayState -> Widget n
 drawGridSingle g =
   withBorderStyle BS.unicodeBold $
     B.borderWithLabel (str "Flappy Bird") $
@@ -113,14 +124,17 @@ drawGridSingle g =
       | isBonus g c = Bonus
       | otherwise = Empty
 
+isPillar :: PlayState -> V2 Int -> Bool -- TODO: same logic as collide
 isPillar g (V2 x y)
   | x == (x1 g) && (y `elem` [0 .. (pl1 g)] ++ [(pl1 g) + gapSize .. height]) = True
   | x == (x2 g) && (y `elem` [0 .. (pl2 g)] ++ [(pl2 g) + gapSize .. height]) = True
   | x == (x3 g) && (y `elem` [0 .. (pl3 g)] ++ [(pl3 g) + gapSize .. height]) = True
   | otherwise = False
 
+isBonus :: PlayState -> V2 Int -> Bool
 isBonus PS {bonus = (V2 xb yb)} (V2 x y) = xb == x && yb == y
 
+drawCell :: Cell -> Widget n
 drawCell Snake = withAttr snakeAttr cw
 drawCell Bird = withAttr birdAttr cw
 drawCell BirdTwo = withAttr bird2Attr cw
@@ -128,23 +142,3 @@ drawCell Bonus = withAttr bonusAttr cw
 drawCell Empty = withAttr emptyAttr cw
 
 cw = str "  "
-
-split :: String -> [String]
-split [] = [""]
-split (c : cs)
-  | c == '\n' = "" : rest
-  | otherwise = (c : head rest) : tail rest
-  where
-    rest = Model.split cs
-
-scorelist :: [Integer]
-scorelist = [1, 2, 3, 4, 5]
-
-filename :: String
-filename = "test.txt"
-
-writescore :: PlayState -> IO PlayState
-writescore g@PS {dir = d, score = s} = do
-  let x = show s
-  appendFile Model.filename (x ++ "\n")
-  return g
