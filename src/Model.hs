@@ -118,20 +118,6 @@ data PlayState = PS
     nextBonus :: Int
   }
 
--- init :: Int -> PlayState
--- init n = PS
---   { gameState = 0
---   , isNetwork = 0
---   , isServer = 0
---   , choices = initChoices
---   , choices2 = initChoices2
---   , st = St (F.focusRing ["Edit1", "Edit2"])
---        (E.editor "Edit1" Nothing "")
---        (E.editor "Edit2" (Just 2) "")
---   , st2msg = "Press Enter to confirm, Esc to quit."
---   , birdY = 0
---   }
-
 drawInt :: Int -> Int -> IO Int
 drawInt x y = getStdRandom (randomR (x, y))
 

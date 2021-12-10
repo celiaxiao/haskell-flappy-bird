@@ -103,8 +103,37 @@ update s = case isNetwork s of
     return s
   1 -> do
     _ <- net_insert "bird_self" (bird2int $ bird1 s)
-    bird2 <- net_lookup "bird_comp"
-    return s {bird2 = int2bird bird2}
+    case isServer s of
+      1 -> do
+        bird2 <- net_lookup "bird_comp"
+        gs <- net_lookup "gameState"
+        net_insert "pl1" (pl1 s)
+        net_insert "pl2" (pl2 s)
+        net_insert "pl3" (pl3 s)
+        net_insert "x1" (x1 s)
+        net_insert "x2" (x2 s)
+        net_insert "x3" (x3 s)
+        return s {
+          bird2 = int2bird bird2,
+          gameState = gs
+        }
+      0 -> do
+        bird2 <- net_lookup "bird_comp"
+        pl1 <- net_lookup "pl1"
+        pl2 <- net_lookup "pl2"
+        pl3 <- net_lookup "pl3"
+        x1 <- net_lookup "x1"
+        x2 <- net_lookup "x2"
+        x3 <- net_lookup "x3"
+        return s {
+          bird2 = int2bird bird2,
+          pl1 = pl1,
+          pl2 = pl2,
+          pl3 = pl3,
+          x1 = x1,
+          x2 = x2,
+          x3 = x3
+        }
 
 control0 d ev = case ev of
   V.EvKey V.KEsc [] -> Brick.halt d
@@ -155,6 +184,7 @@ control3 s ev =
         1 -> do
           _ <- liftIO $ net_insert "bird_self" 0
           _ <- liftIO $ net_insert "bird_comp" 0
+          _ <- liftIO $ net_insert "gameState" 2
           _ <-
             liftIO $
               forkIO $
@@ -383,6 +413,7 @@ runServer ip port = do
   where
     rrLoop conn = do
       msg <- recv conn 1024
+      net_insert "gameState" 1
       let m = splitOn "," (C.unpack msg)
       print $ show (C.unpack msg)
       case C.unpack msg of
@@ -392,6 +423,7 @@ runServer ip port = do
           -- close sock
           return ()
         _ -> do
+          -- print "TCP server socket is closing now."
           let n = length m
           net_insert "bird_comp" (read (m !! 0))
           x <- net_lookup "bird_self"
@@ -402,11 +434,10 @@ runServer ip port = do
           x2 <- net_lookup "x2"
           x3 <- net_lookup "x3"
           score <- net_lookup "score"
-          -- print x
           let msg = C.pack (show x ++ "," ++ show pl1 ++ "," ++ show pl2 ++ "," ++ show pl3 ++ "," ++ show x1 ++ "," ++ show x2 ++ "," ++ show x3 ++ "," ++ show score)
           unless (BS.null msg) $ do
             -- print ("TCP server received: " ++ C.unpack msg)
-            -- print "TCP server is now sending a message to the client"
+            print "TCP server is now sending a message to the client"
             sendAll conn msg
           rrLoop conn
 
@@ -419,8 +450,15 @@ runClient ip port = do
   rrLoop sock
   return ()
   where
-    rrLoop sock = forever $ do
+    rrLoop sock = do
+      x <- net_lookup "bird_self"
+      score <- net_lookup "score"
+      net_insert "bird_comp" x
+      let send_msg = show x ++ "," ++ show score
+      sendAll sock $ C.pack send_msg
+      
       msg <- recv sock 1024
+      print ("TCP client received: " ++ C.unpack msg)
       case (C.unpack msg) of
         "exit" -> do
           print "TCP server socket is closing now."
@@ -428,15 +466,18 @@ runClient ip port = do
           -- close sock
           return ()
         _ -> do
+          print "hhhh"
           let m = splitOn "," (C.unpack msg)
-          let n = length m
-          x <- net_lookup "bird_self"
-          score <- net_lookup "score"
-          net_insert "bird_comp" x
-          let send_msg = show x ++ "," ++ show score
-          sendAll sock $ C.pack send_msg
-      -- sendAll sock $ C.pack "exit"
-      
-      --print ("TCP client received: " ++ C.unpack msg)
-          threadDelay 1000000
+          print $ m
+          net_insert "bird_comp" (read (m !! 0))
+          net_insert "pl1" (read (m !! 1))
+          net_insert "pl2" (read (m !! 2))
+          net_insert "pl3" (read (m !! 3))
+          net_insert "x1" (read (m !! 4))
+          net_insert "x2" (read (m !! 5))
+          net_insert "x3" (read (m !! 6))
+
+
+          print ("TCP client received: " ++ C.unpack msg)
+          threadDelay 100000
           rrLoop sock
