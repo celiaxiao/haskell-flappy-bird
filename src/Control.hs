@@ -4,7 +4,6 @@ import Brick hiding (Result)
 -- import Model.Player
 
 import qualified Brick.Focus as F
-import qualified Brick.Main as M
 import qualified Brick.Types as T
 import qualified Brick.Widgets.Dialog as D
 import qualified Brick.Widgets.Edit as E
@@ -12,8 +11,6 @@ import Control.Applicative ((<|>))
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Lens hiding ((:<), (:>), (<|), (|>))
 import Control.Monad
-import Control.Monad (guard, unless)
-import Control.Monad.Extra (orM)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Trans.Maybe
 import Control.Monad.Trans.State
@@ -23,12 +20,11 @@ import Data.IORef
 import Data.List
 import Data.List.Split
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq (..), (<|))
 import qualified Data.Sequence as S
 import qualified Data.String.Utils as U
 import qualified Graphics.Vty as V
-import Linear.V2 (V2 (..), _x, _y)
+import Linear.V2 (V2 (..), _y)
 import Model
 import Network.Socket hiding (recv)
 import Network.Socket.ByteString (recv, sendAll)
