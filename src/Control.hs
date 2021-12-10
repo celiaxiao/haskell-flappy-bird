@@ -25,6 +25,7 @@ import Data.List.Split
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq (..), (<|))
+import qualified Data.Sequence as S
 import qualified Data.String.Utils as U
 import qualified Graphics.Vty as V
 import Linear.V2 (V2 (..), _x, _y)
@@ -36,8 +37,6 @@ import Network.Socket.ByteString (recv, sendAll)
 import System.IO
 import System.IO.Unsafe
 import System.Random (Random (..), getStdRandom, newStdGen)
-
-import qualified Data.Sequence as S
 
 -------------------------------------------------------------------------------
 
@@ -82,14 +81,15 @@ control' 1 g ev = case ev of
   T.VtyEvent (V.EvKey (V.KChar 'j') []) -> Brick.continue $ turn South g
   -- T.VtyEvent (V.EvKey (V.KChar 'l') []) -> Brick.continue $ turn East g
   -- T.VtyEvent (V.EvKey (V.KChar 'h') []) -> Brick.continue $ turn West g
-  T.VtyEvent (V.EvKey (V.KChar 'r') []) -> Brick.continue =<< liftIO (initGame)
+  T.VtyEvent (V.EvKey (V.KChar 'r') []) -> Brick.continue =<< liftIO initGame
+  T.VtyEvent (V.EvKey (V.KChar 's') []) -> Brick.continue =<< liftIO (writescore g)
   T.VtyEvent (V.EvKey (V.KChar 'q') []) -> Brick.halt g
   T.VtyEvent (V.EvKey V.KEsc []) -> Brick.halt g
   _ -> Brick.continue g -- Brick.halt s
 control' 0 s (VtyEvent ev) = control0 s ev
 control' 2 s ev = control2 s ev
 control' 3 s ev = control3 s ev
-control' 4 s ev = control4 s ev
+control' 4 s (VtyEvent ev) = control4 s ev
 control' _ s _ = Brick.continue s
 
 -- | Step forward in time
@@ -231,8 +231,11 @@ control3 s _ = Brick.continue s
 
 
 control4 s ev = case ev of
-  AppEvent Tick -> Brick.continue =<< liftIO (update s)
-  T.VtyEvent (V.EvKey V.KEsc []) -> Brick.halt s
+
+  V.EvKey V.KEsc [] -> Brick.halt s
+  (V.EvKey (V.KChar 'r') []) -> Brick.continue =<< liftIO initGame
+  (V.EvKey (V.KChar 's') []) -> Brick.continue =<< liftIO (writescore s)
+  (V.EvKey (V.KChar 'q') []) -> Brick.halt s
   _ -> Brick.continue s
 
 getEdit1 edt st = st {_edit1 = edt}
@@ -248,7 +251,8 @@ shouldUpdate = do
     g <- get
     let (s :|> _) = bird1 g
     Control.Monad.Trans.State.put (g{
-      bird1 = (nextHead g <| s)
+      bird1 = (nextHead g <| s),
+      gameState = if isdie g then 4 else 1
     })
 
 isClient :: PlayState -> Bool
@@ -285,7 +289,7 @@ eatBonus g@PS {nextBonus = nb, score = s, bonusList = bl} =
     then
       g
         { bonus = V2 birdXPos (bl !! nb),
-          score = s + 100000 --20
+          score = s + 20 --20
         }
     else g
 
@@ -301,26 +305,9 @@ nextRandomPillar = do
   g <- get
   Control.Monad.Trans.State.put g {randP = (randP g + 1) `mod` pListLen}
 
--- do
---   g <- get
---   let (randp :| randps) = (randPs g)
---   -- (randp :| randps) <- use randPs
---   -- randPs .= randps
---   -- g <- get
---   let touchWall = x1 g == 0 || x2 g == 0 || x3 g == 0
---   if touchWall
---     then nextRandomPillar
---     else Control.Monad.Trans.State.put g {randP = randp}
-
 updateBonus = do
   g <- get
   Control.Monad.Trans.State.put g {nextBonus = (nextBonus g + 1) `mod` bListLen}
-
--- let (bo :| bs) = bonusList g
--- Control.Monad.Trans.State.put
---   g
---     { nextBonus = bo
---     }
 
 -- generate the length of next pillar. If current x-coord is 0, it means we've touched the wall
 -- so we need to use a new random length `rp`. Else, we remain the same
@@ -349,29 +336,33 @@ nextX g x = (x -1) `mod` width
 -- distanceToWall :: Game -> Int
 distanceToWall PS {x1 = xx1, x2 = xx2, x3 = xx3} = minimum [x | x <- [xx1, xx2, xx3]]
 
+isdie g@PS {bird1 = ((V2 xm ym) :<| _)}
+  | ym == 0 = True
+  | ym == height = True
+  | iscollision g = True
 isdie _ = False
 
--- TODO collision
+-- collision
 
 -- if ym == 1 || ym==20 then True else False
 -- iscollision :: Game -> Bool
 iscollision g@PS {bird1 = ((V2 xm ym) :<| _), pl1 = pl1, pl2 = pl2, pl3 = pl3, x1 = x1, x2 = x2, x3 = x3}
-  | xm == x1 && (ym `elem` [0 .. pl1] ++ [pl1 + gapSize .. height]) = True
-  | xm == x2 && (ym `elem` [0 .. pl2] ++ [pl2 + gapSize .. height]) = True
-  | xm == x3 && (ym `elem` [0 .. pl3] ++ [pl3 + gapSize .. height]) = True
+  | collide xm ym x1 pl1 = True
+  | collide xm ym x2 pl2 = True
+  | collide xm ym x3 pl3 = True
 iscollision _ = False
 
+collide :: Int -> Int -> Int -> Int -> Bool
+collide bx by px py = bx == px && (by `elem` [0 .. py] ++ [py + gapSize .. height])
 
 -- move :: Game -> Game
-move g@PS {bird1 = (s :|> _), x1 = xx1, x2 = xx2, x3 = xx3, gameState = l, score = sc} =
+move g@PS {bird1 = (s :|> _), x1 = xx1, x2 = xx2, x3 = xx3} =
   g
-    { bird1 = (nextHead g <| s),
-      x1 = ((xx1 - 1)) `mod` width,
-      x2 = ((xx2 - 1)) `mod` width,
-      x3 = ((xx3 - 1)) `mod` width,
-      gameState = case (isdie g) of
-        True -> 4
-        _ -> 1
+    { bird1 = nextHead g <| s,
+      x1 = (xx1 - 1) `mod` width,
+      x2 = (xx2 - 1) `mod` width,
+      x3 = (xx3 - 1) `mod` width,
+      gameState = if isdie g then 4 else 1
     }
 move _ = error "Snakes can't be empty!"
 
@@ -394,14 +385,6 @@ turn d g@PS {bird1 = (s :|> _)} =
     { bird1 = (moveHead g <| s)
     }
 
--- turn d g = g & dir %~ turnDir d & paused .~ False & locked .~ Trues
--- turn d g = g
--- turn d g = if g ^. locked
---   then g
---   else g & dir %~ turnDir d & paused .~ False & locked .~ True
-
--- turnDir :: Direction -> Direction -> Direction
--- turnDir n c = c
 turnDir n c
   | c `elem` [North, South] && n `elem` [East, West] = n
   | c `elem` [East, West] && n `elem` [North, South] = n
@@ -416,7 +399,23 @@ bird2int ((V2 xm ym) :<| _) = ym
 int2bird :: Int -> Seq Coord
 int2bird ym = (S.singleton (V2 birdXPos ym))
 
-runServer ip port = do 
+-- File IO
+addscorelist :: PlayState -> [Int] -> PlayState
+addscorelist
+  g@PS
+    { historyscore = _
+    }
+  h = g {historyscore = h}
+
+--
+writescore :: PlayState -> IO PlayState
+writescore g@PS {score = s} =
+  do
+    let x = show s
+    _ <- appendFile filename (x ++ "\n")
+    return g
+
+runServer ip port = do
   addrinfos <- getAddrInfo Nothing (Just ip) (Just port)
   let serveraddr = head addrinfos
   sock <- socket (addrFamily serveraddr) Stream defaultProtocol
@@ -504,4 +503,5 @@ runClient ip port = do
 
           -- print ("TCP client received: " ++ C.unpack msg)
           threadDelay 100000
+
           rrLoop sock

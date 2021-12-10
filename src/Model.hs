@@ -7,8 +7,9 @@ import qualified Brick.AttrMap as A
 import qualified Brick.Focus as F
 import qualified Brick.Widgets.Dialog as D
 import qualified Brick.Widgets.Edit as E
+import Data.List (sort, sortBy, take)
 import Data.Sequence hiding (fromList)
-import qualified Data.Sequence as S
+import qualified Data.Sequence as S hiding (sortBy)
 import qualified Graphics.Vty as V
 import Linear.V2 (V2 (..))
 import System.IO
@@ -54,6 +55,9 @@ offset = height `div` 6
 birdXPos = width `div` 4
 pListLen = 100
 bListLen = 30
+
+filename :: String
+filename = "test.txt"
 
 -- gameOverAttr, snakeAttr, birdAttr, emptyAttr, bonusAttr :: AttrName
 gameOverAttr = attrName "gameOver"
@@ -118,6 +122,15 @@ data PlayState = PS
     nextBonus :: Int
   }
 
+
+split :: String -> [String]
+split [] = [""]
+split (c : cs)
+  | c == '\n' = "" : rest
+  | otherwise = (c : head rest) : tail rest
+  where
+    rest = split cs
+
 drawInt :: Int -> Int -> IO Int
 drawInt x y = getStdRandom (randomR (x, y))
 
@@ -131,6 +144,13 @@ randomList n u l = do
   rs <- randomList (n -1) u l
   return (r : rs)
 
+sortDes :: [Int] -> [Int]
+sortDes = Data.List.sortBy (flip compare)
+
+-- >>> readFile "test.txt"
+-- "123"
+
+--
 initGame = do
   a <- drawInt (0 + offset) ((height `div` 3) + offset)
   b <- drawInt (0 + offset) ((height `div` 3) + offset)
@@ -138,8 +158,11 @@ initGame = do
   bonusy <- drawInt (0 + offset) ((height `div` 3) + offset)
   pillarLenList <- randomList pListLen offset ((height `div` 3) + offset)
   bonusPosList <- randomList bListLen (height `div` 4) (height * 3 `div` 4)
+  contents <- readFile filename
   let xm = birdXPos
       ym = height `div` 2
+      x = init $ split contents
+      result = Data.List.sort [read a :: Int | a <- x]
       g =
         PS
           { bird1 = S.singleton (V2 xm ym),
@@ -148,7 +171,7 @@ initGame = do
             bonusList = bonusPosList,
             score = 0,
             dir = South,
-            historyscore = [], -- result TODO
+            historyscore = result,
             -- from C branch
             randP = 0,
             randPs = pillarLenList,
