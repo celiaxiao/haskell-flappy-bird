@@ -414,10 +414,7 @@ turn d g@PS {bird1 = (s :|> _)} =
     { bird1 = (moveHead g <| s)
     }
 
-turnDir n c
-  | c `elem` [North, South] && n `elem` [East, West] = n
-  | c `elem` [East, West] && n `elem` [North, South] = n
-  | otherwise = c
+
 
 -- drawInt :: Int -> Int -> IO Int
 drawInt x y = getStdRandom (randomR (x, y))

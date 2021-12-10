@@ -11,16 +11,15 @@ import Data.List
 import Linear.V2 (V2 (..))
 import Model
 
-
 data Cell = Snake | Bird | Bonus | Empty | BirdTwo
 
 view :: PlayState -> [Widget String]
 view s = case gameState s of
-  0 -> view0 s -- start 
-  1 -> view1 s -- game
-  2 -> view2 s -- start/ join server 
-  3 -> view3 s -- join server
-  _ -> view4 s -- game over
+  0 -> view0 s
+  1 -> view1 s
+  2 -> view2 s
+  3 -> view3 s
+  4 -> view4 s
 
 -- display start 
 view0 :: PlayState -> [Widget n]
@@ -34,14 +33,6 @@ view1 :: PlayState -> [Widget n]
 view1 g@PS {isNetwork = s} = case s of
   0 -> [C.center $ padRight (Pad 2) (drawStats g) <+> drawGridSingle g]
   1 -> [C.center $ padRight (Pad 2) (drawStats g) <+> drawGrid g]
-
-drawStats g@PS {gameState = d} = case d of
-  1 ->
-    hLimit 11 $
-      vBox
-        [ drawScore (score g),
-          padTop (Pad 2) emptyWidget
-        ]
 
 -- display start/ join server 
 view2 :: PlayState -> [Widget n]
@@ -78,6 +69,14 @@ drawScore n =
         padAll 1 $
           str $ show n
 
+drawStats g@PS {gameState = d} = case d of
+  1 ->
+    hLimit 11 $
+      vBox
+        [ drawScore (score g),
+          padTop (Pad 2) emptyWidget
+        ]
+
 drawGameOver :: PlayState -> Widget n
 drawGameOver PS {historyscore = history, score = s, self_win = sw, comp_win = cw} =
   vBox $
@@ -90,13 +89,12 @@ drawGameOver PS {historyscore = history, score = s, self_win = sw, comp_win = cw
     where
       winmsg = case sw of
         1 -> case cw of
-          1 -> str "1 1"
+          1 -> str ""
           0 -> str "You lose!"
         0 -> case cw of
           1 -> str "You win!"
-          0 -> str "0 0"
+          0 -> str ""
 
-drawGrid :: PlayState -> Widget n
 drawGrid g =
   withBorderStyle BS.unicodeBold $
     B.borderWithLabel (str "Flappy Bird") $
