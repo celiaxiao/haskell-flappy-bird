@@ -283,21 +283,22 @@ isdie _ = False
 -- if ym == 1 || ym==20 then True else False
 -- iscollision :: Game -> Bool
 iscollision g@PS {bird1 = ((V2 xm ym) :<| _), pl1 = pl1, pl2 = pl2, pl3 = pl3, x1 = x1, x2 = x2, x3 = x3}
-  | xm == x1 && (ym `elem` [0 .. pl1] ++ [pl1 + gapSize .. height]) = True
-  | xm == x2 && (ym `elem` [0 .. pl2] ++ [pl2 + gapSize .. height]) = True
-  | xm == x3 && (ym `elem` [0 .. pl3] ++ [pl3 + gapSize .. height]) = True
+  | collide xm ym x1 pl1 = True
+  | collide xm ym x2 pl2 = True
+  | collide xm ym x3 pl3 = True
 iscollision _ = False
 
+collide :: Int -> Int -> Int -> Int -> Bool
+collide bx by px py = bx == px && (by `elem` [0 .. py] ++ [py + gapSize .. height])
+
 -- move :: Game -> Game
-move g@PS {bird1 = (s :|> _), x1 = xx1, x2 = xx2, x3 = xx3, gameState = l, score = sc} =
+move g@PS {bird1 = (s :|> _), x1 = xx1, x2 = xx2, x3 = xx3} =
   g
-    { bird1 = (nextHead g <| s),
-      x1 = ((xx1 - 1)) `mod` width,
-      x2 = ((xx2 - 1)) `mod` width,
-      x3 = ((xx3 - 1)) `mod` width,
-      gameState = case (isdie g) of
-        True -> 4
-        _ -> 1
+    { bird1 = nextHead g <| s,
+      x1 = (xx1 - 1) `mod` width,
+      x2 = (xx2 - 1) `mod` width,
+      x3 = (xx3 - 1) `mod` width,
+      gameState = if isdie g then 4 else 1
     }
 move _ = error "Snakes can't be empty!"
 
