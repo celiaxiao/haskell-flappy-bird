@@ -48,33 +48,15 @@ net_lookup str = do
       return x
     Nothing -> return 0
 
-control :: PlayState -> BrickEvent n Tick -> EventM String (Next PlayState)
-control s = control' (gameState s) s
 
-control' 1 g ev = case ev of
-  AppEvent Tick -> Brick.continue =<< liftIO (update $ eatBonus $ step2 (step g))
-  T.VtyEvent (V.EvKey V.KUp []) -> Brick.continue $ turn North g
-  T.VtyEvent (V.EvKey V.KDown []) -> Brick.continue $ turn South g
-  T.VtyEvent (V.EvKey (V.KChar 'k') []) -> Brick.continue $ turn North g
-  T.VtyEvent (V.EvKey (V.KChar 'j') []) -> Brick.continue $ turn South g
-  T.VtyEvent (V.EvKey (V.KChar 'r') []) -> Brick.continue =<< liftIO initGame
-  T.VtyEvent (V.EvKey (V.KChar 's') []) -> Brick.continue =<< liftIO (writescore g)
-  T.VtyEvent (V.EvKey (V.KChar 'q') []) -> Brick.halt g
-  T.VtyEvent (V.EvKey V.KEsc []) -> Brick.halt g
-  _ -> Brick.continue g -- Brick.halt s
-control' 0 s (VtyEvent ev) = control0 s ev
-control' 2 s ev = control2 s ev
-control' 3 s ev = control3 s ev
-control' 4 s ev = control4 s ev
-control' _ s _ = Brick.continue s
-
-step2 :: PlayState -> PlayState
-step2
-  g@PS {score = s} = if isdie g then g {gameState = 4, self_win = 1} else g {gameState = 1, score = s + 5}
 
 step :: PlayState -> PlayState
 step s = flip execState s . runMaybeT $ do
   shouldUpdate <|> generatePillar <|> MaybeT (Just <$> modify move)
+
+step2 :: PlayState -> PlayState
+step2
+  g@PS {score = s} = if isdie g then g {gameState = 4, self_win = 1} else g {gameState = 1, score = s + 5}
 
 update :: PlayState -> IO PlayState
 update s = case (isNetwork s) of
@@ -146,6 +128,28 @@ update s = case (isNetwork s) of
                   comp_win = comp_win
                 })
 
+
+control :: PlayState -> BrickEvent n Tick -> EventM String (Next PlayState)
+control s = control' (gameState s) s
+
+control' 1 g ev = case ev of
+  AppEvent Tick -> Brick.continue =<< liftIO (update $ eatBonus $ step2 (step g))
+  T.VtyEvent (V.EvKey V.KUp []) -> Brick.continue $ turn North g
+  T.VtyEvent (V.EvKey V.KDown []) -> Brick.continue $ turn South g
+  T.VtyEvent (V.EvKey (V.KChar 'k') []) -> Brick.continue $ turn North g
+  T.VtyEvent (V.EvKey (V.KChar 'j') []) -> Brick.continue $ turn South g
+  T.VtyEvent (V.EvKey (V.KChar 'r') []) -> Brick.continue =<< liftIO initGame
+  T.VtyEvent (V.EvKey (V.KChar 's') []) -> Brick.continue =<< liftIO (writescore g)
+  T.VtyEvent (V.EvKey (V.KChar 'q') []) -> Brick.halt g
+  T.VtyEvent (V.EvKey V.KEsc []) -> Brick.halt g
+  _ -> Brick.continue g -- Brick.halt s
+control' 0 s (VtyEvent ev) = control0 s ev
+control' 2 s ev = control2 s ev
+control' 3 s ev = control3 s ev
+control' 4 s ev = control4 s ev
+control' _ s _ = Brick.continue s
+
+
 control0 :: PlayState -> V.Event -> EventM n (Next PlayState)
 control0 d ev = case ev of
   V.EvKey V.KEsc [] -> Brick.halt d
@@ -156,12 +160,6 @@ control0 d ev = case ev of
     nextDialog <- D.handleDialogEvent ev (choices d)
     Brick.continue (d {choices = nextDialog})
 control0 d _ = Brick.continue d
-
-getState :: (Eq a, Num a) => PlayState -> D.Dialog a -> PlayState
-getState s d = case (D.dialogSelection d) of
-  Just 0 -> s {gameState = 1, isNetwork = 0}
-  Just 1 -> s {gameState = 2, isNetwork = 1}
-  Nothing -> s {gameState = 0}
 
 
 control2 :: PlayState -> BrickEvent n1 Tick -> EventM n2 (Next PlayState)
@@ -177,12 +175,6 @@ control2 d ev@(T.VtyEvent evt) = case ev of
 
 control2 d _ = Brick.continue d
 
-
-getState2 :: (Eq a, Num a) => PlayState -> D.Dialog a -> PlayState
-getState2 s d = case D.dialogSelection d of
-  Just 0 -> s {gameState = 3, isServer = 1}
-  Just 1 -> s {gameState = 3, isServer = 0}
-  Nothing -> s {gameState = 2}
 
 control3 :: PlayState -> BrickEvent n Tick -> EventM String (Next PlayState)
 control3 s (T.VtyEvent ev) =
@@ -245,6 +237,21 @@ control4 s evt@(VtyEvent ev) = case ev of
   _ -> Brick.continue s
 control4 s (AppEvent Tick) = Brick.continue =<< liftIO (update s)
 control4 s _ = Brick.continue s
+
+
+getState :: (Eq a, Num a) => PlayState -> D.Dialog a -> PlayState
+getState s d = case (D.dialogSelection d) of
+  Just 0 -> s {gameState = 1, isNetwork = 0}
+  Just 1 -> s {gameState = 2, isNetwork = 1}
+  Nothing -> s {gameState = 0}
+
+getState2 :: (Eq a, Num a) => PlayState -> D.Dialog a -> PlayState
+getState2 s d = case D.dialogSelection d of
+  Just 0 -> s {gameState = 3, isServer = 1}
+  Just 1 -> s {gameState = 3, isServer = 0}
+  Nothing -> s {gameState = 2}
+
+
 
 getEdit1 edt st = st {_edit1 = edt}
 
