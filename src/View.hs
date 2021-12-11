@@ -69,6 +69,7 @@ drawScore n =
         padAll 1 $
           str $ show n
 
+drawStats :: PlayState -> Widget n
 drawStats g@PS {gameState = d} = case d of
   1 ->
     hLimit 11 $

@@ -85,32 +85,30 @@ data PlayState = PS
   { gameState :: Int,
     isNetwork :: Int,
     isServer :: Int,
-    choices :: D.Dialog Int, -- single player
-    choices2 :: D.Dialog Int, -- multi player 
+    choices :: D.Dialog Int, -- Single vs. Double 
+    choices2 :: D.Dialog Int, -- Start Server vs. Join Server 
     st :: St,
     st2msg :: String,
-    birdY :: Int,
     historyscore :: [Int],
     bonus :: Coord,
-    pl1 :: Int,
+    pl1 :: Int, -- Pillar lengths
     pl2 :: Int,
     pl3 :: Int,
-    x1 :: Int,
+    x1 :: Int, -- Pillar x coordinates 
     x2 :: Int,
     x3 :: Int,
-    randP :: Int,
-    randPs :: [Int],
-    bird1 :: Seq Coord,
+    randP :: Int, -- Random number for pillar length
+    randPs :: [Int], -- Sequence of random numbers
+    bird1 :: Seq Coord, -- Coordinates of birds
     bird2 :: Seq Coord,
-    score :: Int,
-    bonusList :: [Int],
+    score :: Int, -- Game score of the player 
+    bonusList :: [Int], -- List of y coordinates for 
     dir :: Direction,
     nextBonus :: Int,
     self_win :: Int,
     comp_win :: Int,
     win :: Int
   }
-
 
 split :: String -> [String]
 split [] = [""]
@@ -136,6 +134,7 @@ randomList n u l = do
 sortDes :: [Int] -> [Int]
 sortDes = Data.List.sortBy (flip compare)
 
+initGame :: IO PlayState
 initGame = do
   a <- drawInt (0 + offset) ((height `div` 3) + offset)
   b <- drawInt (0 + offset) ((height `div` 3) + offset)
@@ -169,15 +168,14 @@ initGame = do
             gameState = 0,
             isNetwork = 0,
             isServer = 0,
-            choices = initChoices,
-            choices2 = initChoices2,
+            choices = initChoices, -- Single vs. Double 
+            choices2 = initChoices2, -- Start Server vs. Join Server 
             st =
               St
                 (F.focusRing ["Edit1", "Edit2"])
                 (E.editor "Edit1" Nothing "")
                 (E.editor "Edit2" (Just 2) ""),
             st2msg = "Press Enter to confirm, Esc to quit.",
-            birdY = 0,
             nextBonus = 0,
             self_win = 0,
             comp_win = 0,
